@@ -5,8 +5,6 @@ Constants and configuration for LeanAgent.
 import os
 from typing import List
 
-# Random seed for reproducibility
-RANDOM_SEED = 3407  # https://arxiv.org/abs/2109.08203
 
 # Batch size for training
 BATCH_SIZE = 4

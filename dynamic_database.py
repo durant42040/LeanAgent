@@ -668,6 +668,49 @@ def safe_remove_dir_path(dir_path):
 class DynamicDatabase:
     repositories: List[Repository] = field(default_factory=list)
 
+    def __post_init__(self):
+        """Post-initialization hook for dataclass."""
+        pass
+
+    def __init__(self, file_path: Optional[str] = None):
+        """
+        Initialize a DynamicDatabase instance.
+        
+        Args:
+            file_path: Optional path to a JSON file to load the database from.
+                      If provided and the file exists, loads the database from it.
+                      If the file doesn't exist or is invalid, creates a new database.
+        """
+        # Initialize repositories as empty list
+        self.repositories = []
+        
+        # If file_path is provided, try to load from it
+        if file_path is not None:
+            if (
+                not os.path.exists(file_path)
+                or os.path.getsize(file_path) == 0
+            ):
+                # File doesn't exist or is empty, initialize it
+                logger.info(f"Initializing new database at {file_path}")
+                self.to_json(file_path)
+            else:
+                try:
+                    logger.info(f"Loading database from {file_path}")
+                    # Load the data from the file
+                    with open(file_path, "r") as f:
+                        data = json.load(f)
+                    # Create database from the loaded data
+                    loaded_db = self.from_dict(data)
+                    # Copy repositories from loaded database
+                    self.repositories = loaded_db.repositories
+                    logger.info(f"Loaded database from {file_path}")
+                except json.JSONDecodeError:
+                    # If there's an error decoding the JSON, initialize a new database
+                    logger.warning(
+                        f"Error decoding JSON from {file_path}. Initializing new database."
+                    )
+                    self.to_json(file_path)
+
     SPLIT = Dict[str, List[Theorem]]
 
     def generate_merged_dataset(

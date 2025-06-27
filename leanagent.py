@@ -44,7 +44,7 @@ from utils.git import (
 )
 
 # Set the seed for reproducibility
-random.seed(RANDOM_SEED)  # https://arxiv.org/abs/2109.08203
+random.seed(3407)  # https://arxiv.org/abs/2109.08203
 
 # Set up environment variables
 os.environ["RAY_TMPDIR"] = f"{RAID_DIR}/tmp"
@@ -499,34 +499,7 @@ def should_skip_repo():
     return False, None
 
 
-def init_db(
-    dynamic_database_json_path: str,
-):
-    if (
-        not os.path.exists(dynamic_database_json_path)
-        or os.path.getsize(dynamic_database_json_path) == 0
-    ):
-        # File doesn't exist or is empty, initialize it
-        logger.info(f"Initializing new database at {dynamic_database_json_path}")
-        db = DynamicDatabase()
-        db.to_json(dynamic_database_json_path)
-    else:
-        try:
-            logger.info(f"Loading database from {dynamic_database_json_path}")
-            db = DynamicDatabase.from_json(dynamic_database_json_path)
-            logger.info(f"Loaded database from {dynamic_database_json_path}")
-        except json.JSONDecodeError:
-            # If there's an error decoding the JSON, initialize a new database
-            logger.warning(
-                f"Error decoding JSON from {dynamic_database_json_path}. Initializing new database."
-            )
-            db = DynamicDatabase()
-            db.to_json(dynamic_database_json_path)
-
-    return db
-
-
-def discover_and_add_repositories(
+def find_and_add_repositories(
     num_repos: int,
     personal_access_token: str,
     repo_dir: str,
@@ -690,7 +663,7 @@ def setup_repositories_and_db(
     # Initialize the database if it doesn't exist or is empty
     if is_main_process:
         logger.info("Starting the main process")
-        db = init_db(dynamic_database_json_path)
+        db = DynamicDatabase(file_path=dynamic_database_json_path)
 
     logger.info(f"Found {num_repos} repositories")
 
@@ -698,7 +671,7 @@ def setup_repositories_and_db(
     if curriculum_learning:
         logger.info("Starting curriculum learning")
         if is_main_process:
-            lean_git_repos = discover_and_add_repositories(
+            lean_git_repos = find_and_add_repositories(
                 num_repos,
                 personal_access_token,
                 repo_dir,
@@ -711,7 +684,7 @@ def setup_repositories_and_db(
     else:
         logger.info("Starting without curriculum learning")
         if is_main_process:
-            lean_git_repos = discover_and_add_repositories(
+            lean_git_repos = find_and_add_repositories(
                 num_repos,
                 personal_access_token,
                 repo_dir,
@@ -773,7 +746,7 @@ def main():
             curriculum_learning,
             is_main_process,
             personal_access_token,
-            repo_dir,
+            REPO_DIR,
         )
 
         # Iterate over each repository and lambda value
