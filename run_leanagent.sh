@@ -24,11 +24,11 @@
 #
 # Usage: bash run_leanagent.sh
 #!/bin/bash
-export RAID_DIR="<RAID_DIR>"
+export RAID_DIR="raid"
 cd ${RAID_DIR}/LeanAgent
 echo "Script executed from: ${PWD}"
-source <PATH_TO_CONDA_ENV>/etc/profile.d/conda.sh
-conda activate LeanAgent
+# source <PATH_TO_CONDA_ENV>/etc/profile.d/conda.sh
+# conda activate LeanAgent
 export PYTHONPATH="${PYTHONPATH}:${RAID_DIR}/LeanAgent"
 export GITHUB_ACCESS_TOKEN="<GITHUB_ACCESS_TOKEN>"
 export CACHE_DIR="${RAID_DIR}/.cache/lean_dojo"

@@ -15,7 +15,7 @@ import torch
 from lean_dojo import (
     Dojo,
     DojoCrashError,
-    DojoTacticTimeoutError,
+    DojoHardTimeoutError,
     DojoInitError,
     LeanError,
     LeanGitRepo,
@@ -166,7 +166,7 @@ class BestFirstSearchProver:
 
             try:
                 await self._step(priority_queue)
-            except DojoTacticTimeoutError:
+            except DojoHardTimeoutError:
                 logger.info(time.monotonic())
                 logger.info(time_start)
                 logger.info(time.monotonic() - time_start)
@@ -279,7 +279,7 @@ class BestFirstSearchProver:
                 result_node = ProofFinishedNode(response)
             elif type(response) in (
                 LeanError,
-                DojoTacticTimeoutError,
+                DojoHardTimeoutError,
                 ProofGivenUp,
             ):
                 result_node = ErrorNode(response)
@@ -318,7 +318,7 @@ class BestFirstSearchProver:
                 assert self.root.status == Status.PROVED
             elif type(response) in (
                 LeanError,
-                DojoTacticTimeoutError,
+                DojoHardTimeoutError,
                 ProofGivenUp,
             ):
                 assert isinstance(node, ErrorNode)

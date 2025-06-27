@@ -15,15 +15,15 @@ PERSONAL_ACCESS_TOKEN = os.environ.get("GITHUB_ACCESS_TOKEN")
 
 # Directory paths
 REPO_DIR = f"{RAID_DIR}/repos_new"
-DATA_DIR = "<DATA_DIR>"
-CHECKPOINT_DIR = "<CHECKPOINT_DIR>"
-FISHER_DIR = "<FISHER_DIR>"  # Optional
+DATA_DIR = f"{RAID_DIR}/data"
+CHECKPOINT_DIR = f"{RAID_DIR}/checkpoints"
+FISHER_DIR = f"{RAID_DIR}/fisher"  # Optional
 
 # File paths
-EVAL_RESULTS_FILE_PATH = f"{RAID_DIR}/LeanAgent/<EVAL_RESULTS_FILE_PATH>"
-DB_FILE_NAME = "<DB_FILE_NAME>"
-PROOF_LOG_FILE_NAME = "proof_logs/<PROOF_LOG_FILE_NAME>"
-ENCOUNTERED_THEOREMS_FILE = "<ENCOUNTERED_THEOREMS_FILE>"
+EVAL_RESULTS_FILE_PATH = f"{RAID_DIR}/LeanAgent/eval_results.json"
+DB_FILE_NAME = f"{RAID_DIR}/dynamic_database.json"
+PROOF_LOG_FILE_NAME = "proof_logs/proof_log.txt"
+ENCOUNTERED_THEOREMS_FILE = f"{RAID_DIR}/encountered_theorems.json"
 
 # Git-related constants
 PR_TITLE = "[LeanAgent] Proofs"

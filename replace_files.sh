@@ -26,7 +26,7 @@
 # Note: This script modifies installed Python packages. Use with caution as it may
 # affect the behavior of any code using these packages.
 # -----------------------------------------------------------------------------
-export RAID_DIR="<RAID_DIR>"
+export RAID_DIR="raid"
 
 # Replace PyTorch Lightning progress.py
 python -c "import pytorch_lightning as pl; print(pl.__file__)" > pl_path.txt

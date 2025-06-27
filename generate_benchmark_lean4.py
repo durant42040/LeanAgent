@@ -48,8 +48,8 @@ def is_supported_version(v) -> bool:
     if (
         major < 4
         or (major == 4 and minor < 3)
-        or (major == 4 and minor > 8)
-        or (major == 4 and minor == 8 and patch > 1)
+        or (major == 4 and minor > 18)
+        or (major == 4 and minor == 18 and patch > 1)
     ):
         return False
     if (

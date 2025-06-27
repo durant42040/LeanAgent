@@ -42,6 +42,7 @@ from utils.git import (
     find_and_save_compatible_commits,
     search_github_repositories,
 )
+from utils.repository import write_skip_file, should_skip_repo, save_sorted_repos, load_sorted_repos
 
 # Set the seed for reproducibility
 random.seed(3407)  # https://arxiv.org/abs/2109.08203
@@ -108,18 +109,6 @@ def _eval(data, preds_map) -> Tuple[float, float, float]:
     return R1, R10, MRR
 
 
-def load_fisher_information(file_path):
-    """Loads the Fisher Information Matrix."""
-    try:
-        with open(file_path, "rb") as f:
-            fisher_info = pickle.load(f)
-        logger.info("Fisher Information successfully loaded.")
-        return fisher_info
-    except FileNotFoundError:
-        logger.error(f"No Fisher Information file found at {file_path}.")
-        return None
-
-
 def find_latest_checkpoint():
     """Finds the most recent checkpoint."""
     checkpoint_dir = RAID_DIR + "/" + CHECKPOINT_DIR
@@ -133,21 +122,6 @@ def find_latest_checkpoint():
     latest_checkpoint = max(all_checkpoints, key=os.path.getmtime)
     logger.info(f"Using the latest checkpoint: {latest_checkpoint}")
     return latest_checkpoint
-
-
-def find_latest_fisher():
-    """Finds the most recent Fisher Information Matrix."""
-    fisher_dir = RAID_DIR + "/" + FISHER_DIR
-    all_fisher = [
-        os.path.join(fisher_dir, f)
-        for f in os.listdir(fisher_dir)
-        if f.endswith(".pkl")
-    ]
-    if not all_fisher:
-        raise FileNotFoundError("No Fisher Information Matrices found.")
-    latest_fisher = max(all_fisher, key=os.path.getmtime)
-    logger.info(f"Using the latest Fisher Information Matrix: {latest_fisher}")
-    return latest_fisher
 
 
 def theorem_identifier(
@@ -377,128 +351,6 @@ def replace_sorry_with_proof(proofs):
     logger.info("Finished replacing sorries with proofs!")
 
 
-def calculate_difficulty(theorem: Theorem) -> Union[float, None]:
-    """Calculates the difficulty of a theorem."""
-    proof_steps = theorem.traced_tactics
-    if any("sorry" in step.tactic for step in proof_steps):
-        return float("inf")  # Hard (no proof)
-    if len(proof_steps) == 0:
-        return None  # To be distributed later
-    return math.exp(len(proof_steps))
-
-
-def categorize_difficulty(
-    difficulty: Union[float, None], percentiles: List[float]
-) -> str:
-    """Categorizes the difficulty of a theorem."""
-    if difficulty is None:
-        return "To_Distribute"
-    if difficulty == float("inf"):
-        return "Hard (No proof)"
-    elif difficulty <= percentiles[0]:
-        return "Easy"
-    elif difficulty <= percentiles[1]:
-        return "Medium"
-    else:
-        return "Hard"
-
-
-def sort_repositories_by_difficulty(db: DynamicDatabase) -> List[Repository]:
-    """Sorts repositories by the difficulty of their theorems."""
-    difficulties_by_repo = defaultdict(list)
-    all_difficulties = []
-
-    print("Ready to calculate difficulties of all theorems")
-    for repo in db.repositories:
-        print(f"Starting {repo.name}")
-        for theorem in repo.get_all_theorems:
-            difficulty = calculate_difficulty(theorem)
-            theorem.difficulty_rating = difficulty
-            difficulties_by_repo[repo].append(
-                (
-                    theorem.full_name,
-                    str(theorem.file_path),
-                    tuple(theorem.start),
-                    tuple(theorem.end),
-                    difficulty,
-                )
-            )
-            if difficulty is not None:
-                all_difficulties.append(difficulty)
-
-        db.update_repository(repo)
-        print(f"Finished {repo.name}")
-
-    percentiles = np.percentile(all_difficulties, [33, 67])
-
-    categorized_theorems = defaultdict(lambda: defaultdict(list))
-
-    print("Ready to categorize theorems")
-    for repo, theorems in difficulties_by_repo.items():
-        print(f"Starting {repo.name}")
-        for theorem_name, file_path, start, end, difficulty in theorems:
-            category = categorize_difficulty(difficulty, percentiles)
-            categorized_theorems[repo][category].append(
-                (theorem_name, file_path, start, end, difficulty)
-            )
-        print(f"Finished {repo.name}")
-
-    print("Distributed theorems with no proofs")
-    for repo in categorized_theorems:
-        print(f"Starting {repo.name}")
-        to_distribute = categorized_theorems[repo]["To_Distribute"]
-        chunk_size = len(to_distribute) // 3
-        for i, category in enumerate(["Easy", "Medium", "Hard"]):
-            start = i * chunk_size
-            end = start + chunk_size if i < 2 else None
-            categorized_theorems[repo][category].extend(to_distribute[start:end])
-        del categorized_theorems[repo]["To_Distribute"]
-        print(f"Finished {repo.name}")
-
-    # Sort repositories based on the number of easy theorems
-    sorted_repos = sorted(
-        categorized_theorems.keys(),
-        key=lambda r: len(categorized_theorems[r]["Easy"]),
-        reverse=True,
-    )
-
-    return sorted_repos, categorized_theorems, percentiles
-
-
-def save_sorted_repos(sorted_repos: List[Repository], file_path: str):
-    """Saves the sorted repositories to a file."""
-    sorted_repo_data = [
-        {"url": repo.url, "commit": repo.commit, "name": repo.name}
-        for repo in sorted_repos
-    ]
-    with open(file_path, "w") as f:
-        json.dump(sorted_repo_data, f, indent=2)
-
-
-def load_sorted_repos(file_path: str) -> List[Tuple[str, str, str]]:
-    """Loads the sorted repositories from a file."""
-    with open(file_path, "r") as f:
-        sorted_repo_data = json.load(f)
-    return [(repo["url"], repo["commit"], repo["name"]) for repo in sorted_repo_data]
-
-
-def write_skip_file(repo_url):
-    """Writes a repository URL to a file to skip it."""
-    skip_file_path = os.path.join(RAID_DIR, DATA_DIR, "skip_repo.txt")
-    with open(skip_file_path, "w") as f:
-        f.write(repo_url)
-
-
-def should_skip_repo():
-    """Checks if a repository should be skipped."""
-    skip_file_path = os.path.join(RAID_DIR, DATA_DIR, "skip_repo.txt")
-    if os.path.exists(skip_file_path):
-        with open(skip_file_path, "r") as f:
-            repo_url = f.read().strip()
-        return True, repo_url
-    return False, None
-
-
 def find_and_add_repositories(
     num_repos: int,
     personal_access_token: str,
@@ -550,9 +402,7 @@ def setup_curriculum_learning(
     Returns:
         List of LeanGitRepo objects sorted by difficulty
     """
-    sorted_repos, categorized_theorems, percentiles = sort_repositories_by_difficulty(
-        db
-    )
+    sorted_repos, categorized_theorems, percentiles = db.sort_repositories_by_difficulty()
     print("Sorted repositories. Saving now...")
     db.to_json(dynamic_database_json_path)
     save_sorted_repos(sorted_repos, "sorted_repos.json")
@@ -717,10 +567,9 @@ def main():
         current_epoch = 0
         epochs_per_repo = 1
         run_progressive_training = True
-        use_fisher = False
         single_repo = True
         curriculum_learning = True
-        num_repos = 15
+        num_repos = 1
         dynamic_database_json_path = RAID_DIR + "/" + DB_FILE_NAME
 
         lambdas = None
@@ -825,13 +674,6 @@ def main():
                     model.train()
                     logger.info(f"Loaded premise retriever at {model_checkpoint_path}")
 
-                    # Load previous Fisher Information Matrix for current EWC
-                    if use_fisher:
-                        latest_fisher = find_latest_fisher()
-                        fisher_info = load_fisher_information(latest_fisher)
-                        model.set_fisher_info(fisher_info)
-                        logger.info("Fisher Information Matrix loaded.")
-
                     # Initialize ModelCheckpoint and EarlyStopping
                     dir_name = new_data_path.split("/")[-1]
                     filename_suffix = f"_lambda_{lambda_value}"
@@ -862,7 +704,7 @@ def main():
                     custom_log_dir = os.path.join(
                         RAID_DIR,
                         "lightning_logs",
-                        f"{dir_name}_{use_fisher}_lambda_{lambda_value}",
+                        f"{dir_name}_{False}_lambda_{lambda_value}",
                     )
                     os.makedirs(custom_log_dir, exist_ok=True)
 
@@ -1100,9 +942,6 @@ def main():
                 logger.info("Finished processing the repository")
                 current_epoch += epochs_per_repo
                 logger.info(f"current epoch: {current_epoch}")
-                if use_fisher:
-                    # Need to return to compute the FIM
-                    return
 
     except Exception as e:
         logger.info(f"An error occurred: {e}", file=sys.stderr)

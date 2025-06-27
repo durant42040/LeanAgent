@@ -5,6 +5,7 @@ import json
 import os
 import random
 import shutil
+import math
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -15,8 +16,10 @@ from lean_dojo import LeanGitRepo
 import lean_dojo
 from loguru import logger
 from tqdm import tqdm
+import numpy as np
 
 from utils.constants import RAID_DIR, DATA_DIR, BATCH_SIZE
+from utils.difficulty import calculate_difficulty, categorize_difficulty
 
 def parse_pos(pos_str):
     """
@@ -1035,6 +1038,76 @@ class DynamicDatabase:
             existing_db.update_repository(repo)
 
         existing_db.to_json(file_path)
+
+    def sort_repositories_by_difficulty(self) -> Tuple[List[Repository], Dict, List[float]]:
+        """
+        Sorts repositories by the difficulty of their theorems.
+        
+        Returns:
+            Tuple containing:
+            - List of repositories sorted by difficulty (most easy theorems first)
+            - Dictionary mapping repositories to categorized theorems
+            - List of percentile thresholds [33rd, 67th]
+        """
+        difficulties_by_repo = defaultdict(list)
+        all_difficulties = []
+
+        print("Ready to calculate difficulties of all theorems")
+        logger.info(f"repositories: {self.repositories}")
+        for repo in self.repositories:
+            print(f"Starting {repo.name}")
+            for theorem in repo.get_all_theorems:
+                difficulty = calculate_difficulty(theorem)
+                theorem.difficulty_rating = difficulty
+                difficulties_by_repo[repo].append(
+                    (
+                        theorem.full_name,
+                        str(theorem.file_path),
+                        tuple(theorem.start),
+                        tuple(theorem.end),
+                        difficulty,
+                    )
+                )
+                if difficulty is not None:
+                    all_difficulties.append(difficulty)
+
+            self.update_repository(repo)
+            print(f"Finished {repo.name}")
+
+        percentiles = np.percentile(all_difficulties, [33, 67])
+
+        categorized_theorems = defaultdict(lambda: defaultdict(list))
+
+        print("Ready to categorize theorems")
+        for repo, theorems in difficulties_by_repo.items():
+            print(f"Starting {repo.name}")
+            for theorem_name, file_path, start, end, difficulty in theorems:
+                category = categorize_difficulty(difficulty, percentiles)
+                categorized_theorems[repo][category].append(
+                    (theorem_name, file_path, start, end, difficulty)
+                )
+            print(f"Finished {repo.name}")
+
+        print("Distributed theorems with no proofs")
+        for repo in categorized_theorems:
+            print(f"Starting {repo.name}")
+            to_distribute = categorized_theorems[repo]["To_Distribute"]
+            chunk_size = len(to_distribute) // 3
+            for i, category in enumerate(["Easy", "Medium", "Hard"]):
+                start = i * chunk_size
+                end = start + chunk_size if i < 2 else None
+                categorized_theorems[repo][category].extend(to_distribute[start:end])
+            del categorized_theorems[repo]["To_Distribute"]
+            print(f"Finished {repo.name}")
+
+        # Sort repositories based on the number of easy theorems
+        sorted_repos = sorted(
+            categorized_theorems.keys(),
+            key=lambda r: len(categorized_theorems[r]["Easy"]),
+            reverse=True,
+        )
+
+        return sorted_repos, categorized_theorems, percentiles
 
     def add_repo_to_database(self, repo, dynamic_database_json_path: str) -> Optional[str]:
         """
