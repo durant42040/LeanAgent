@@ -2,18 +2,13 @@
 """
 
 import math
-from enum import Enum
-from lean_dojo import (
-    TacticState,
-    LeanError,
-    TimeoutError,
-    ProofGivenUp,
-    ProofFinished,
-)
 from abc import ABC, abstractmethod
-from functools import total_ordering
 from dataclasses import dataclass, field
-from typing import Optional, List, Tuple, Iterable, Union
+from enum import Enum
+from functools import total_ordering
+from typing import Iterable, List, Optional, Tuple, Union
+
+from lean_dojo import LeanError, ProofFinished, ProofGivenUp, TacticState, TimeoutError
 
 
 class Status(Enum):

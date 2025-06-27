@@ -1,30 +1,31 @@
 """Lightning module for the tactic generator."""
 
 import os
-import torch
-import shutil
-import openai
 import pickle
+import shutil
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Tuple
+
+import openai
+import pytorch_lightning as pl
+import torch
 from lean_dojo import Pos
 from loguru import logger
-import pytorch_lightning as pl
 from torchmetrics import Metric
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Tuple
-from transformers import T5ForConditionalGeneration, AutoTokenizer
+from transformers import AutoTokenizer, T5ForConditionalGeneration
 
 from common import (
-    zip_strict,
-    remove_marks,
     IndexedCorpus,
+    format_augmented_state,
     get_optimizers,
     load_checkpoint,
-    format_augmented_state,
+    remove_marks,
+    zip_strict,
 )
 from retrieval.model import PremiseRetriever
 
-
 torch.set_float32_matmul_precision("medium")
+
 
 def safe_remove_dir(dir_path):
     """
@@ -57,7 +58,9 @@ def safe_remove_dir(dir_path):
                 if attempt < max_retries - 1:
                     time.sleep(0.1)  # Wait a bit before retrying
                 else:
-                    logger.error(f"Failed to remove {dir_path} after {max_retries} attempts: {e}")
+                    logger.error(
+                        f"Failed to remove {dir_path} after {max_retries} attempts: {e}"
+                    )
                     raise
 
 
@@ -80,6 +83,7 @@ class TopkAccuracy(Metric):
         update(batch_preds, batch_gt): Updates the state with batch statistics.
         compute(): Computes the accuracy based on collected state.
     """
+
     is_differentiable: Optional[bool] = False
     higher_is_better: Optional[bool] = True
     full_state_update: bool = True
@@ -295,11 +299,11 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
     def validation_step(self, batch: Dict[str, Any], _) -> None:
         """
         Performs a validation step on a batch of data.
-        
-        The method computes the loss on the validation data, logs the loss, and generates 
-        tactic candidates using Beam Search. It also logs example inputs/outputs and 
+
+        The method computes the loss on the validation data, logs the loss, and generates
+        tactic candidates using Beam Search. It also logs example inputs/outputs and
         calculates top-k accuracy metrics for the generated tactics.
-        
+
         Args:
             batch: A dictionary containing batch data with the following keys:
                 - state_ids: Tensor of input state token IDs
@@ -307,10 +311,10 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
                 - tactic_ids: Tensor of target tactic token IDs
                 - tactic: List of reference tactic strings
             _: Batch index (unused)
-        
+
         Returns:
             None
-        
+
         Side effects:
             - Logs validation loss
             - Logs example inputs/outputs as text
@@ -442,7 +446,7 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
         Returns:
             List[List[Tuple[str, float]]]: A list of lists where each inner list contains tuples of
             (tactic_text, score) for each state. Duplicate tactics are removed.
-            
+
         Note:
             If a retriever is configured, it will be used to augment states with relevant premises
             before generation.

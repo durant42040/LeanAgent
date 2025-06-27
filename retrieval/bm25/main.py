@@ -1,24 +1,23 @@
 """Script for training the BM25 premise retriever."""
 
-import os
-import ray
-import json
-import pickle
 import argparse
 import itertools
-import numpy as np
-from tqdm import tqdm
+import json
 import multiprocessing
-from loguru import logger
-from common import Corpus
+import os
+import pickle
+from typing import Any, Dict, List
+
+import numpy as np
+import ray
 from lean_dojo import Pos
+from loguru import logger
 from rank_bm25 import BM25Okapi
-from tokenizers import Tokenizer
-from typing import List, Dict, Any
 from ray.util.actor_pool import ActorPool
+from tokenizers import Tokenizer
+from tqdm import tqdm
 
-
-from common import Context, format_state, get_all_pos_premises
+from common import Context, Corpus, format_state, get_all_pos_premises
 
 
 def _process_theorem(

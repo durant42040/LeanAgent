@@ -1,34 +1,37 @@
 import json
-import shutil
 import random
-import networkx as nx
-from copy import copy
-from pathlib import Path
-from loguru import logger
-from datetime import datetime
-from collections import defaultdict
-from typing import Dict, List, Union
-import time
-import lean_dojo
-from lean_dojo import *
-from lean_dojo.constants import LEAN4_PACKAGES_DIR
 import re
+import shutil
 import subprocess
 import sys
+import time
+from collections import defaultdict
+from copy import copy
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Union
+
+import lean_dojo
+import networkx as nx
+from lean_dojo import *
+from lean_dojo.constants import LEAN4_PACKAGES_DIR
+from loguru import logger
 
 random.seed(3407)  # https://arxiv.org/abs/2109.08203
 
-RAID_DIR = os.environ.get('RAID_DIR')
+RAID_DIR = os.environ.get("RAID_DIR")
 SPLIT_NAME = str  # train/val/test
 SPLIT = Dict[SPLIT_NAME, List[TracedTheorem]]
 SPLIT_STRATEGY = str
 _LEAN4_VERSION_REGEX = re.compile(r"leanprover/lean4:(?P<version>.+?)")
+
 
 def get_lean4_version_from_config(toolchain: str) -> str:
     """Return the required Lean version given a ``lean-toolchain`` config."""
     m = _LEAN4_VERSION_REGEX.fullmatch(toolchain.strip())
     assert m is not None, "Invalid config."
     return m["version"]
+
 
 def is_supported_version(v) -> bool:
     """
@@ -42,7 +45,12 @@ def is_supported_version(v) -> bool:
         return False
     v = v[1:]
     major, minor, patch = [int(_) for _ in v.split("-")[0].split(".")]
-    if major < 4 or (major == 4 and minor < 3) or (major == 4 and minor > 8) or (major == 4 and minor == 8 and patch > 1):
+    if (
+        major < 4
+        or (major == 4 and minor < 3)
+        or (major == 4 and minor > 8)
+        or (major == 4 and minor == 8 and patch > 1)
+    ):
         return False
     if (
         major > 4
@@ -57,10 +65,9 @@ def is_supported_version(v) -> bool:
     else:
         return True
 
+
 def _split_sequentially(
-    traced_theorems: List[TracedTheorem],
-    num_val: int,
-    num_test: int
+    traced_theorems: List[TracedTheorem], num_val: int, num_test: int
 ) -> SPLIT:
     """Split ``traced_theorems`` sequentially into train/val/test."""
     num_theorems = len(traced_theorems)
@@ -73,9 +80,7 @@ def _split_sequentially(
 
 
 def split_randomly(
-    traced_theorems: List[TracedTheorem],
-    num_val: int,
-    num_test: int
+    traced_theorems: List[TracedTheorem], num_val: int, num_test: int
 ) -> SPLIT:
     """Split ``traced_theorems`` randomly into train/val/test."""
     logger.info("Splitting the theorems randomly")
@@ -83,10 +88,9 @@ def split_randomly(
     random.shuffle(traced_theorems)
     return _split_sequentially(traced_theorems, num_val, num_test)
 
+
 def split_by_premise(
-    traced_theorems: List[TracedTheorem],
-    num_val: int,
-    num_test: int
+    traced_theorems: List[TracedTheorem], num_val: int, num_test: int
 ) -> SPLIT:
     """
     Split theorems into train/val/test so that proofs in val/test rely on at
@@ -125,12 +129,15 @@ def split_by_premise(
         "test": theorems_val_test[num_val:],
     }
 
-def split_data(traced_repo: TracedRepo, num_val_pct: float = 0.02, num_test_pct: float = 0.02) -> Dict[SPLIT_STRATEGY, SPLIT]:
+
+def split_data(
+    traced_repo: TracedRepo, num_val_pct: float = 0.02, num_test_pct: float = 0.02
+) -> Dict[SPLIT_STRATEGY, SPLIT]:
     """
     Split the traced theorems into training, validation, and test sets.
 
     This function extracts theorems from the provided TracedRepo object, excluding
-    theorems from the Lean 4 repository itself. The theorems are then split using 
+    theorems from the Lean 4 repository itself. The theorems are then split using
     multiple strategies, including random splitting and splitting by novel premises.
 
     Args:
@@ -159,12 +166,15 @@ def split_data(traced_repo: TracedRepo, num_val_pct: float = 0.02, num_test_pct:
     num_val = int(num_theorems * num_val_pct)
     num_test = int(num_theorems * num_test_pct)
 
-    logger.info(f"{num_theorems} theorems in total, with {num_val} for validation and {num_test} for testing")
+    logger.info(
+        f"{num_theorems} theorems in total, with {num_val} for validation and {num_test} for testing"
+    )
 
     return {
         "random": split_randomly(traced_theorems, num_val, num_test),
         "novel_premises": split_by_premise(traced_theorems, num_val, num_test),
     }
+
 
 def _get_file_path(traced_repo: TracedRepo, thm: TracedTheorem) -> str:
     """
@@ -201,8 +211,8 @@ def export_proofs(
 ) -> None:
     """
     Export proofs from a traced repository to the specified destination path.
-    This function processes the given splits (organized by strategy) and writes the theorem proofs 
-    to JSON files in the destination directory. Each theorem is exported with its metadata, 
+    This function processes the given splits (organized by strategy) and writes the theorem proofs
+    to JSON files in the destination directory. Each theorem is exported with its metadata,
     including URL, commit, file path, theorem statement, and traced tactics.
     Args:
         splits: Dictionary mapping split strategies to actual splits. Each split maps dataset
@@ -246,7 +256,7 @@ def export_proofs(
                 theorem_statement = None
                 if thm.has_tactic_proof() and thm.get_tactic_proof() is not None:
                     theorem_statement = thm.get_theorem_statement()
-                
+
                 data.append(
                     {
                         "url": traced_repo.repo.url,
@@ -303,18 +313,13 @@ def export_premises(traced_repo: TracedRepo, dst_path: Path) -> None:
     logger.info(
         f"{num_premises} theorems/definitions from {len(traced_repo.traced_files)} files saved to {oup_path}"
     )
-    
+
     oup_path = dst_path / "traced_files.jsonl"
     with oup_path.open("wt") as oup:
         for traced_file in traced_repo.traced_files:
             source_file = traced_file.lean_file
             source_file_path = source_file.path
-            oup.write(
-                json.dumps(
-                    {"traced_file_path": str(source_file_path)}
-                )
-                + "\n"
-            )
+            oup.write(json.dumps({"traced_file_path": str(source_file_path)}) + "\n")
 
     return num_premises, len(traced_repo.traced_files)
 
@@ -358,17 +363,17 @@ def export_metadata(traced_repo: TracedRepo, dst_path: Path, **kwargs) -> None:
 def safe_remove_dir(dir_path):
     """
     Safely removes a directory if it exists.
-    
+
     This function attempts to remove the specified directory, with multiple retries
     in case of permission errors. A warning is logged if the directory already exists.
-    
+
     Args:
         dir_path (str): Path to the directory to be removed.
-        
+
     Raises:
         PermissionError: If the directory cannot be removed after multiple attempts
                          due to permission issues.
-    
+
     Note:
         The function will retry up to 5 times with a 0.1 second delay between attempts
         if a PermissionError occurs.
@@ -384,23 +389,25 @@ def safe_remove_dir(dir_path):
                 if attempt < max_retries - 1:
                     time.sleep(0.1)  # Wait a bit before retrying
                 else:
-                    logger.error(f"Failed to remove {dir_path} after {max_retries} attempts: {e}")
+                    logger.error(
+                        f"Failed to remove {dir_path} after {max_retries} attempts: {e}"
+                    )
                     raise
 
 
 def safe_remove_dir_path(dir_path):
     """
     Safely removes a directory and all its contents if it exists.
-    
+
     Uses multiple attempts with a small delay between them to handle potential
     permission errors that might occur on some systems when removing directories.
-    
+
     Args:
         dir_path (Path): Path object representing the directory to remove
-        
+
     Raises:
         PermissionError: If the directory cannot be removed after multiple attempts
-        
+
     Returns:
         None
     """
@@ -415,8 +422,11 @@ def safe_remove_dir_path(dir_path):
                 if attempt < max_retries - 1:
                     time.sleep(0.1)  # Wait a bit before retrying
                 else:
-                    logger.error(f"Failed to remove {dir_path} after {max_retries} attempts: {e}")
+                    logger.error(
+                        f"Failed to remove {dir_path} after {max_retries} attempts: {e}"
+                    )
                     raise
+
 
 def export_data(
     traced_repo: TracedRepo,
@@ -425,20 +435,20 @@ def export_data(
     **kwargs,
 ) -> None:
     """Export a traced repository's content to a specified destination path.
-    
-    This function exports proofs, premises, licenses, and metadata from a traced 
-    repository to a specified destination path. The repository's theorems should have 
+
+    This function exports proofs, premises, licenses, and metadata from a traced
+    repository to a specified destination path. The repository's theorems should have
     been split using a strategy defined in `splits`.
-    
+
     Args:
         traced_repo: The traced repository containing the data to export.
         splits: Dictionary mapping split strategies to their corresponding splits.
         dst_path: Destination path where the data will be exported. Can be a string or Path object.
         **kwargs: Additional keyword arguments to pass to export_metadata.
-    
+
     Returns:
         tuple: A tuple containing (number of premises, number of files traced, total theorems exported).
-        
+
     Note:
         Any existing content at the destination path will be removed.
     """
@@ -460,17 +470,18 @@ def export_data(
 
     return num_premises, num_files_traced, total_theorems
 
+
 def configure_leandojo():
     """
     Configure the LeanDojo environment for benchmarking.
-    
+
     This function sets up the logger configuration for LeanDojo and displays
     important environment variables including the current working directory
     and various constants related to process management.
-    
+
     It removes any existing logger handlers and adds a new handler for stderr
     with DEBUG level logging.
-    
+
     No parameters are required, and the function does not return any values.
     """
     constants.logger.remove()
@@ -482,11 +493,12 @@ def configure_leandojo():
 
     logger.info(f"Current working directory: {os.getcwd()}")
 
+
 def main(url, commit, dst_dir):
     """
     Generates a benchmark dataset for Lean 4 proofs from a specified repository.
     This function clones a Lean 4 repository, configures the appropriate Lean toolchain
-    version, traces the repository using LeanDojo, and exports the trace data to a 
+    version, traces the repository using LeanDojo, and exports the trace data to a
     designated directory.
     Args:
         url (str): The URL of the Lean 4 Git repository to clone
@@ -511,10 +523,12 @@ def main(url, commit, dst_dir):
     v = get_lean4_version_from_config(config["content"])
     logger.info(f"lean version v: {v}")
     logger.info(f"is supported: {is_supported_version(v)}")
-    if not is_supported_version(v):  # Won't get here since we checked for a compatible commit, but sanity check in case
+    if not is_supported_version(
+        v
+    ):  # Won't get here since we checked for a compatible commit, but sanity check in case
         logger.info("Unsupported version")
-    v = v[1:] # ignore "v" at beginning
-    
+    v = v[1:]  # ignore "v" at beginning
+
     lean_dir2 = f"/.elan/toolchains/leanprover--lean4---{v}"
     lean_dir3 = f"~/.elan/toolchains/leanprover--lean4---{v}"
     logger.info(f"lean path2 {lean_dir2}")
@@ -523,11 +537,13 @@ def main(url, commit, dst_dir):
         logger.info(f"Lean toolchain path 2 does not exist: {lean_dir2}")
     if not os.path.exists(lean_dir3):
         logger.info(f"Lean toolchain path 3 does not exist: {lean_dir3}")
-    os.environ['LEAN4_PATH'] = lean_dir2
-    os.environ['PATH'] = f"{lean_dir2}/bin:{os.environ.get('PATH', '')}"
+    os.environ["LEAN4_PATH"] = lean_dir2
+    os.environ["PATH"] = f"{lean_dir2}/bin:{os.environ.get('PATH', '')}"
     logger.info(f"Switched to Lean toolchain at: {lean_dir2}")
 
-    logger.info(f"lean --version: {subprocess.run(['lean', '--version'], capture_output=True).stdout.decode('utf-8')}")
+    logger.info(
+        f"lean --version: {subprocess.run(['lean', '--version'], capture_output=True).stdout.decode('utf-8')}"
+    )
     logger.info(f"repo: {repo}")
 
     logger.info("Configuring LeanDojo again...")
@@ -544,6 +560,8 @@ def main(url, commit, dst_dir):
     safe_remove_dir(dst_dir)
     splits = split_data(traced_repo)
     logger.info("Successfully split the data")
-    num_premises, num_files_traced, total_theorems = export_data(traced_repo, splits, dst_dir)
+    num_premises, num_files_traced, total_theorems = export_data(
+        traced_repo, splits, dst_dir
+    )
     logger.info("Successfully exported the data")
     return traced_repo, num_premises, num_files_traced, total_theorems

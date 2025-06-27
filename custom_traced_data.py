@@ -1,31 +1,32 @@
 """This module defines traced repos/files/theorems.
 """
 
-import re
-import os
-import json
-import random
 import itertools
+import json
+import os
+import random
+import re
 import webbrowser
-import networkx as nx
-from tqdm import tqdm
-from lxml import etree
-from pathlib import Path
-from loguru import logger
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any, Tuple, Union
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
+import networkx as nx
+from loguru import logger
+from lxml import etree
+from tqdm import tqdm
+
+from ..constants import LEAN4_PACKAGES_DIR, LOAD_USED_PACKAGES_ONLY, NUM_WORKERS
 from ..utils import (
-    is_git_repo,
     compute_md5,
-    to_lean_path,
+    is_git_repo,
     to_dep_path,
     to_json_path,
+    to_lean_path,
     to_xml_path,
 )
 from .ast import *
-from .lean import LeanFile, LeanGitRepo, Theorem, Pos
-from ..constants import NUM_WORKERS, LOAD_USED_PACKAGES_ONLY, LEAN4_PACKAGES_DIR
+from .lean import LeanFile, LeanGitRepo, Pos, Theorem
 
 
 @dataclass(frozen=True)
@@ -1080,7 +1081,7 @@ class TracedRepo:
             TracedFile.from_traced_file(root_dir, path, repo)
             for path in tqdm(json_paths)
         ]
-        
+
         dependencies = repo.get_dependencies(root_dir)
         if build_deps:
             traced_files_graph = _build_dependency_graph(traced_files, root_dir, repo)
@@ -1110,7 +1111,7 @@ class TracedRepo:
 
         for tf in tqdm(self.traced_files, total=num_traced_files):
             _save_xml_to_disk(tf)
-    
+
     @classmethod
     def load_from_disk(
         cls, root_dir: Union[str, Path], build_deps: bool = True
@@ -1138,7 +1139,7 @@ class TracedRepo:
         traced_files = [
             TracedFile.from_xml(root_dir, path, repo) for path in tqdm(xml_paths)
         ]
-        
+
         dependencies = repo.get_dependencies(root_dir)
         if build_deps:
             traced_files_graph = _build_dependency_graph(traced_files, root_dir, repo)

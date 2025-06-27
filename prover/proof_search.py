@@ -1,40 +1,41 @@
 """Proof search using best-first search.
 """
 
+import asyncio
+import heapq
 import os
 import sys
-import ray
 import time
 import uuid
-import heapq
-import asyncio
-import torch
-from lean_dojo import (
-    Pos,
-    Dojo,
-    Theorem,
-    LeanGitRepo,
-    TacticState,
-    LeanError,
-    TimeoutError,
-    ProofFinished,
-    ProofGivenUp,
-    DojoInitError,
-    DojoCrashError,
-    DojoHardTimeoutError,
-)
-from loguru import logger
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
+
+import ray
+import torch
+from lean_dojo import (
+    Dojo,
+    DojoCrashError,
+    DojoTacticTimeoutError,
+    DojoInitError,
+    LeanError,
+    LeanGitRepo,
+    Pos,
+    ProofFinished,
+    ProofGivenUp,
+    TacticState,
+    Theorem,
+)
+from loguru import logger
 from ray.util.actor_pool import ActorPool
-from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams, RequestOutput
+from vllm import AsyncEngineArgs, AsyncLLMEngine, RequestOutput, SamplingParams
 
 from common import zip_strict
+from generator.model import FixedTacticGenerator, RetrievalAugmentedGenerator
 from prover.search_tree import *
-from generator.model import RetrievalAugmentedGenerator, FixedTacticGenerator
 
-tolerance = 1 # second
-RAID_DIR = os.environ.get('RAID_DIR')
+tolerance = 1  # second
+RAID_DIR = os.environ.get("RAID_DIR")
+
 
 @dataclass(frozen=True)
 class SearchResult:
@@ -79,21 +80,21 @@ class BestFirstSearchProver:
     ) -> Optional[SearchResult]:
         """
         Performs a best-first search to find a proof for the given theorem.
-        
+
         The search uses a tactic generator to propose tactics and expands
         the search tree until either a proof is found, the timeout is reached,
         or the search space is exhausted.
-        
+
         Args:
             repo (LeanGitRepo): The Lean Git repository containing the theorem.
             thm (Theorem): The theorem to be proved.
             pos (Pos): The position information for the theorem in the source code.
-            
+
         Returns:
             Optional[SearchResult]: A SearchResult object containing information about the
             proof search, including the proof if one was found, or None if there was
             an initialization error.
-            
+
         Raises:
             No explicit exceptions are raised from this method, though internal
             exceptions are caught and handled.
@@ -165,7 +166,7 @@ class BestFirstSearchProver:
 
             try:
                 await self._step(priority_queue)
-            except DojoHardTimeoutError:
+            except DojoTacticTimeoutError:
                 logger.info(time.monotonic())
                 logger.info(time_start)
                 logger.info(time.monotonic() - time_start)
@@ -278,7 +279,7 @@ class BestFirstSearchProver:
                 result_node = ProofFinishedNode(response)
             elif type(response) in (
                 LeanError,
-                TimeoutError,
+                DojoTacticTimeoutError,
                 ProofGivenUp,
             ):
                 result_node = ErrorNode(response)
@@ -317,7 +318,7 @@ class BestFirstSearchProver:
                 assert self.root.status == Status.PROVED
             elif type(response) in (
                 LeanError,
-                TimeoutError,
+                DojoTacticTimeoutError,
                 ProofGivenUp,
             ):
                 assert isinstance(node, ErrorNode)
@@ -387,15 +388,21 @@ class VllmActor:
             final_output = oup
         return final_output
 
+
 def find_latest_checkpoint(raid_dir, checkpoint_dir):
     """Finds the most recent checkpoint."""
     checkpoint_dir = raid_dir + "/" + checkpoint_dir
-    all_checkpoints = [os.path.join(checkpoint_dir, f) for f in os.listdir(checkpoint_dir) if f.endswith(".ckpt")]
+    all_checkpoints = [
+        os.path.join(checkpoint_dir, f)
+        for f in os.listdir(checkpoint_dir)
+        if f.endswith(".ckpt")
+    ]
     if not all_checkpoints:
         raise FileNotFoundError("No checkpoints found.")
     latest_checkpoint = max(all_checkpoints, key=os.path.getmtime)
     logger.info(f"Using the latest checkpoint: {latest_checkpoint}")
     return latest_checkpoint
+
 
 class DistributedProver:
     """A distributed prover that uses Ray to parallelize the proof search.
@@ -447,7 +454,7 @@ class DistributedProver:
                 model_checkpoint_path = find_latest_checkpoint(raid_dir, checkpoint_dir)
             else:
                 model_checkpoint_path = f"{RAID_DIR}/checkpoints/mathlib4_29dcec074de168ac2bf835a77ef68bbe069194c5.ckpt"
-            
+
             config = {
                 "model_name": "kaiyuy/leandojo-lean4-retriever-tacgen-byt5-small",
                 "lr": 1e-3,
@@ -473,7 +480,7 @@ class DistributedProver:
                     logger.info(f"Loaded indexed corpus from {indexed_corpus_path}")
                 tac_gen.retriever.reindex_corpus(batch_size=32)
                 logger.info("Finished reindexing!")
-    
+
         self.distributed = num_workers > 1
         if not self.distributed:
             assert num_gpus <= 1

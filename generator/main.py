@@ -1,6 +1,7 @@
 """Script for training the tactic generator."""
 
 import os
+
 from loguru import logger
 from pytorch_lightning.cli import LightningCLI
 

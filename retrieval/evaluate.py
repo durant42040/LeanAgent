@@ -1,13 +1,14 @@
 """Script for evaluating the premise retriever."""
 
-import os
-import json
-import pickle
 import argparse
-import numpy as np
-from tqdm import tqdm
+import json
+import os
+import pickle
 from typing import Tuple
+
+import numpy as np
 from loguru import logger
+from tqdm import tqdm
 
 
 def _eval(data, preds_map) -> Tuple[float, float, float]:

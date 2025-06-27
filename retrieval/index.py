@@ -1,9 +1,10 @@
 """Script for indexing the corpus using the retriever.
 """
 
-import torch
-import pickle
 import argparse
+import pickle
+
+import torch
 from loguru import logger
 
 from common import IndexedCorpus

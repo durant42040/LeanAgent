@@ -1,10 +1,11 @@
-import os
 import argparse
+import os
+
 from loguru import logger
 from tokenizers import Tokenizer
 from tokenizers.models import BPE
-from tokenizers.trainers import BpeTrainer
 from tokenizers.pre_tokenizers import Whitespace
+from tokenizers.trainers import BpeTrainer
 
 from common import Corpus
 from retrieval.datamodule import RetrievalDataset

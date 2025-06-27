@@ -1,8 +1,10 @@
+import pickle
+
 import pytorch_lightning as pl
-from loguru import logger
 import torch
 import torch.distributed as dist
-import pickle
+from loguru import logger
+
 
 class FisherComputationModule(pl.LightningModule):
     def __init__(self, model):
@@ -79,7 +81,7 @@ class FisherComputationModule(pl.LightningModule):
         across the entire distributed training process.
         """
         logger.info("Synchronizing and normalizing Fisher Information")
-        
+
         # Synchronize Fisher Information across GPUs
         # Each GPU now has the sum of the Fisher Information from all GPUs for each parameter
         for name in self.fisher_info:
@@ -97,10 +99,12 @@ class FisherComputationModule(pl.LightningModule):
             self.fisher_info[name] /= total_samples
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.model.parameters(), lr=0)  # We don't actually want to update the model
+        return torch.optim.SGD(
+            self.model.parameters(), lr=0
+        )  # We don't actually want to update the model
 
     def save_fisher_info(self, fisher_file_path):
         if self.trainer.is_global_zero:
             logger.info(f"Saving Fisher Information Matrix to {fisher_file_path}")
             with open(fisher_file_path, "wb") as f:
-                    pickle.dump(self.fisher_info, f)
+                pickle.dump(self.fisher_info, f)

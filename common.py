@@ -1,24 +1,25 @@
+import json
 import os
+import random
 import re
 import sys
-import json
-import random
-import torch
 import tempfile
-import networkx as nx
-from loguru import logger
-from lean_dojo import Pos
-import pytorch_lightning as pl
 from dataclasses import dataclass, field
-from leanagent_utils import remove_marks, MARK_START_SYMBOL, MARK_END_SYMBOL
+from typing import Any, Dict, Generator, List, Optional, Tuple
+
+import networkx as nx
+import pytorch_lightning as pl
+import torch
+from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
+from lean_dojo import Pos
+from loguru import logger
+from pytorch_lightning.strategies.deepspeed import DeepSpeedStrategy
 from pytorch_lightning.utilities.deepspeed import (
     convert_zero_checkpoint_to_fp32_state_dict,
 )
 from transformers import get_cosine_schedule_with_warmup
-from deepspeed.ops.adam import FusedAdam, DeepSpeedCPUAdam
-from typing import Optional, List, Dict, Any, Tuple, Generator
-from pytorch_lightning.strategies.deepspeed import DeepSpeedStrategy
 
+from leanagent_utils import MARK_END_SYMBOL, MARK_START_SYMBOL, remove_marks
 
 Example = Dict[str, Any]
 Batch = Dict[str, Any]
@@ -38,10 +39,12 @@ class Context:
         assert isinstance(self.theorem_full_name, str)
         assert isinstance(self.theorem_pos, Pos)
         if self.state is not None:
-            if not (isinstance(self.state, str)
+            if not (
+                isinstance(self.state, str)
                 and "⊢" in self.state
                 and MARK_START_SYMBOL not in self.state
-                and MARK_END_SYMBOL not in self.state):
+                and MARK_END_SYMBOL not in self.state
+            ):
                 logger.warning(f"Invalid state: {self.state}")
             assert (
                 isinstance(self.state, str)
@@ -56,8 +59,10 @@ class Context:
             return ""
         return self.state
 
+
 def escape_regex_special_chars(text):
     return re.escape(text)
+
 
 @dataclass(unsafe_hash=True)
 class Premise:
@@ -202,7 +207,6 @@ class Corpus:
         dep_graph = nx.DiGraph()
         self.all_premises = []
 
-
         for line in open(jsonl_path):
             file_data = json.loads(line)
             path = file_data["path"]
@@ -222,7 +226,7 @@ class Corpus:
         self.imported_premises_cache = {}
         self.fill_cache()
 
-    def _get_file(self, path: str) -> File:        
+    def _get_file(self, path: str) -> File:
         # for some reason, the `path` in the parameter starts with ./
         # but the paths in the corpus don't
         # so we need to remove the ./
@@ -471,7 +475,9 @@ def _is_deepspeed_checkpoint(path: str):
 def load_checkpoint(model_cls, ckpt_path: str, device, freeze: bool, config: dict):
     """Handle DeepSpeed checkpoints in model loading."""
     if not _is_deepspeed_checkpoint(ckpt_path):
-        model = model_cls.load_from_checkpoint(ckpt_path, strict=False, **config).to(device)
+        model = model_cls.load_from_checkpoint(ckpt_path, strict=False, **config).to(
+            device
+        )
     else:
         with tempfile.TemporaryDirectory() as dirname:
             path = os.path.join(dirname, "lightning.cpkt")

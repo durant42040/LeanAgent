@@ -3,6 +3,7 @@ from retrieval.fisher_computation_module import FisherComputationModule
 
 new_data_path = "<NEW_DATA_PATH>/<NEW_DATASET_NAME>"
 
+
 def main():
     """
     The main function that drives LeanAgent.
@@ -23,7 +24,7 @@ def main():
     try:
         logger.info("Calculating Fisher Information Matrix for EWC")
         ### FISHER INFORMATION MATRIX FOR NEXT EWC
-        
+
         if not torch.cuda.is_available():
             logger.warning("Indexing the corpus using CPU can be very slow.")
             device = torch.device("cpu")
@@ -41,7 +42,9 @@ def main():
         try:
             best_model_path = find_latest_checkpoint()
             logger.info(f"Found latest checkpoint: {best_model_path}")
-            best_model = PremiseRetriever.load(best_model_path, device, freeze=False, config=config)
+            best_model = PremiseRetriever.load(
+                best_model_path, device, freeze=False, config=config
+            )
         except FileNotFoundError as e:
             logger.error(f"No checkpoint found: {str(e)}")
             logger.warning("Using the current model state.")
@@ -51,8 +54,8 @@ def main():
         fisher_module = FisherComputationModule(best_model)
 
         VERY_LONG_TIMEOUT = 7 * 24 * 60 * 60 * 52  # 1 year
-        os.environ['TORCH_NCCL_ASYNC_ERROR_HANDLING'] = '1'
-        os.environ['NCCL_TIMEOUT'] = str(VERY_LONG_TIMEOUT * 1000)
+        os.environ["TORCH_NCCL_ASYNC_ERROR_HANDLING"] = "1"
+        os.environ["NCCL_TIMEOUT"] = str(VERY_LONG_TIMEOUT * 1000)
 
         ddp_strategy = DDPStrategy(timeout=timedelta(seconds=VERY_LONG_TIMEOUT))
         # Setup trainer for Fisher computation
@@ -79,9 +82,9 @@ def main():
             batch_size=BATCH_SIZE,
             eval_batch_size=64,
             max_seq_len=1024,
-            num_workers=4
+            num_workers=4,
         )
-        data_module.setup(stage='fit')
+        data_module.setup(stage="fit")
 
         try:
             logger.info("right before barrier fisher")
@@ -92,7 +95,11 @@ def main():
 
             # Save the FIM if needed
             if fisher_trainer.is_global_zero:
-                fisher_file_path = os.path.join(RAID_DIR, FISHER_DIR, f"fisher_info_{new_data_path.split('/')[-1]}_distributed.pkl")
+                fisher_file_path = os.path.join(
+                    RAID_DIR,
+                    FISHER_DIR,
+                    f"fisher_info_{new_data_path.split('/')[-1]}_distributed.pkl",
+                )
                 fisher_module.save_fisher_info(fisher_file_path)
                 logger.info(f"Fisher Information Matrix saved at {fisher_file_path}")
         except Exception as e:
@@ -102,6 +109,7 @@ def main():
     except Exception as e:
         logger.info(f"An error occurred: {e}", file=sys.stderr)
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     main()

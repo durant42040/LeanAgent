@@ -1,23 +1,24 @@
 """Data module for the tactic generator."""
 
-import os
 import json
+import os
 import pickle
-from tqdm import tqdm
-from loguru import logger
+from typing import Any, Dict, List, Optional
+
 import pytorch_lightning as pl
-from typing import Optional, List, Dict, Any
+from loguru import logger
 from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
 from transformers import AutoTokenizer, ByT5Tokenizer
 
 from common import (
     Batch,
     Corpus,
     Example,
-    format_state,
-    remove_marks,
-    format_tactic,
     format_augmented_state,
+    format_state,
+    format_tactic,
+    remove_marks,
 )
 
 
@@ -25,7 +26,7 @@ class GeneratorDataset(Dataset):
     """
     A PyTorch Dataset for loading and processing data for a generator model that produces tactics given proof states.
 
-    This dataset handles loading examples from a JSON file, formatting states and tactics, 
+    This dataset handles loading examples from a JSON file, formatting states and tactics,
     and optionally augmenting states with retrieved premises.
 
     Attributes:
@@ -39,6 +40,7 @@ class GeneratorDataset(Dataset):
         is_train (bool): Whether this dataset is used for training.
         data (List[Example]): The loaded and processed examples.
     """
+
     def __init__(
         self,
         data_path: str,
