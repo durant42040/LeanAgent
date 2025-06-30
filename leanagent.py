@@ -344,48 +344,6 @@ def replace_sorry_with_proof(proofs):
     logger.info("Finished replacing sorries with proofs!")
 
 
-def setup_repositories_and_db(
-    db: DynamicDatabase,
-    num_repos: int,
-    curriculum_learning: bool,
-) -> Tuple[DynamicDatabase, List[LeanGitRepo]]:
-    """
-    Initialize the database and discover repositories.
-
-    Args:
-        dynamic_database_json_path: Path to the database JSON file
-        num_repos: Number of repositories to discover
-        curriculum_learning: Whether to enable curriculum learning
-
-    Returns:
-        Tuple of (database, lean_git_repos)
-    """
-
-    # Initialize the database if it doesn't exist or is empty
-    logger.info("Starting the main process")
-
-    logger.info(f"Found {num_repos} repositories")
-
-    lean_git_repos = db.find_and_add_repositories(num_repos)
-
-    # If curriculum learning is enabled, initialize repositories and sort them by difficulty
-    if curriculum_learning:
-        logger.info("Starting curriculum learning")
-        lean_git_repos, _, _ = db.sort_repositories_by_difficulty()
-    else:
-        logger.info("Starting without curriculum learning")
-
-    logger.info("Finding compatible repositories...")
-    repo_info_file = f"{RAID_DIR}/{DATA_DIR}/repo_info_compatible.json"
-    updated_repos = find_and_save_compatible_commits(repo_info_file, lean_git_repos)
-
-    lean_git_repos = [
-        LeanGitRepo(repo["url"], repo["commit"]) for repo in updated_repos
-    ]
-
-    return lean_git_repos
-
-
 def main():
     """
     Main function to run LeanAgent.
@@ -401,14 +359,6 @@ def main():
         num_repos = 1
         dynamic_database_json_path = RAID_DIR + "/" + DB_FILE_NAME
 
-        lambdas = None
-        if run_progressive_training:
-            logger.info("Running progressive training")
-            lambdas = [0.1]
-        else:
-            logger.info("Running retrieval baseline")
-            lambdas = [0.0]
-
         # Add debug information
         logger.info("Configuring LeanDojo...")
         generate_benchmark_lean4.configure_leandojo()
@@ -416,16 +366,21 @@ def main():
 
         # Check if the current process is the main one
         is_main_process = int(os.environ.get("LOCAL_RANK", "0")) == 0
-
         # Initialize database and discover repositories
         if is_main_process:
             db = DynamicDatabase(json_path=dynamic_database_json_path)
-            lean_git_repos = setup_repositories_and_db(
-                db,
+            lean_git_repos = db.setup_repositories(
                 num_repos,
                 curriculum_learning,
             )
 
+        lambdas = None
+        if run_progressive_training:
+            logger.info("Running progressive training")
+            lambdas = [0.1]
+        else:
+            logger.info("Running retrieval baseline")
+            lambdas = [0.0]
         # Iterate over each repository and lambda value
         for i in range(num_repos):
             for lambda_value in lambdas:

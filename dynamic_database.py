@@ -6,6 +6,7 @@ import os
 import random
 import shutil
 import time
+import generate_benchmark_lean4
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -18,8 +19,13 @@ from lean_dojo.data_extraction.lean import Pos
 from loguru import logger
 from tqdm import tqdm
 
-from utils.constants import BATCH_SIZE, DATA_DIR, RAID_DIR
+from utils.constants import BATCH_SIZE, DATA_DIR, RAID_DIR, KNOWN_REPOSITORIES
 from utils.difficulty import calculate_difficulty, categorize_difficulty
+from utils.git import (
+    get_compatible_commit,
+    search_github_repositories,
+    find_and_save_compatible_commits,
+)
 
 
 def parse_pos(pos_str):
@@ -1156,9 +1162,7 @@ class DynamicDatabase:
 
         return sorted_repos, categorized_theorems, percentiles
 
-    def add_repo_to_database(
-        self, repo, dynamic_database_json_path: str
-    ) -> Optional[str]:
+    def trace_repository(self, repo) -> Optional[Repository]:
         """
         Adds a repository to the dynamic database.
 
@@ -1167,27 +1171,9 @@ class DynamicDatabase:
             dynamic_database_json_path: Path to the database JSON file
 
         Returns:
-            "Done" if successful, None if failed
+            repo if successful, None if failed
         """
-        # Prepare the data necessary to add this repo to the dynamic database
-        url = repo.url
-        if not url.endswith(".git"):
-            url = url + ".git"
-        logger.info(f"Processing {url}")
-
-        if "mathlib4" in url:
-            sha = "2b29e73438e240a427bcecc7c0fe19306beb1310"
-            v = "v4.8.0"
-        elif "SciLean" in url:
-            sha = "22d53b2f4e3db2a172e71da6eb9c916e62655744"
-            v = "v4.7.0"
-        elif "pfr" in url:
-            sha = "fa398a5b853c7e94e3294c45e50c6aee013a2687"
-            v = "v4.8.0-rc1"
-        else:
-            from utils.git import get_compatible_commit
-
-            sha, v = get_compatible_commit(url)
+        sha, v = get_compatible_commit(url)
 
         if not sha:
             logger.info(f"Failed to find a compatible commit for {url}")
@@ -1200,8 +1186,6 @@ class DynamicDatabase:
         dir_name = repo.url.split("/")[-1] + "_" + sha
         dst_dir = RAID_DIR + "/" + DATA_DIR + "/" + dir_name
         logger.info(f"Generating benchmark at {dst_dir}")
-
-        import generate_benchmark_lean4
 
         traced_repo, _, _, total_theorems = generate_benchmark_lean4.main(
             repo.url, sha, dst_dir
@@ -1216,13 +1200,11 @@ class DynamicDatabase:
             return None
         logger.info(f"Finished generating benchmark at {dst_dir}")
 
-        # Add the new repo to the dynamic database
         config = repo.get_config("lean-toolchain")
         v = generate_benchmark_lean4.get_lean4_version_from_config(config["content"])
         theorems_folder = dst_dir + "/random"
         premise_files_corpus = dst_dir + "/corpus.jsonl"
         files_traced = dst_dir + "/traced_files.jsonl"
-        pr_url = None
         data = {
             "url": repo.url,
             "name": "/".join(repo.url.split("/")[-2:]),
@@ -1235,18 +1217,13 @@ class DynamicDatabase:
             "theorems_folder": theorems_folder,
             "premise_files_corpus": premise_files_corpus,
             "files_traced": files_traced,
-            "pr_url": pr_url,
+            "pr_url": None,
         }
 
         repo = Repository.from_dict(data)
-        logger.info("Before adding new repo:")
-        self.print_database_contents()
-        self.add_repository(repo)
-        logger.info("After adding new repo:")
-        self.print_database_contents()
-        self.to_json(dynamic_database_json_path)
+        self.to_json(self.json_path)
 
-        return "Done"
+        return repo
 
     def find_and_add_repositories(self, num_repos: int) -> List[LeanGitRepo]:
         """
@@ -1258,19 +1235,65 @@ class DynamicDatabase:
         Returns:
             List of discovered LeanGitRepo objects
         """
-        from utils.constants import KNOWN_REPOSITORIES
-        from utils.git import search_github_repositories
+        lean_git_repos = search_github_repositories(
+            "Lean", num_repos, KNOWN_REPOSITORIES
+        )
+
+        for repo in lean_git_repos:
+            logger.info(f"Processing {repo.url}")
+            repo = self.trace_repository(repo)
+            if repo is not None:
+                self.add_repository(repo)
+                logger.info(f"Successfully added repo {repo.url}")
+            else:
+                logger.info(f"Failed to add repo {repo.url}")
+
+        return lean_git_repos
+
+    def setup_repositories(
+        self,
+        num_repos: int,
+        curriculum_learning: bool,
+    ) -> List[LeanGitRepo]:
+        """
+        Initialize the database and discover repositories.
+
+        Args:
+            num_repos: Number of repositories to discover
+            curriculum_learning: Whether to enable curriculum learning
+
+        Returns:
+            List of LeanGitRepo objects
+        """
+        logger.info("Starting the main process")
+        logger.info(f"Found {num_repos} repositories")
 
         lean_git_repos = search_github_repositories(
             "Lean", num_repos, KNOWN_REPOSITORIES
         )
 
-        for i in range(len(lean_git_repos)):
-            repo = lean_git_repos[i]
+        for repo in lean_git_repos:
             logger.info(f"Processing {repo.url}")
-            result = self.add_repo_to_database(repo, self.json_path)
-            if result is not None:
+            repo = self.trace_repository(repo)
+            if repo is not None:
+                self.add_repository(repo)
                 logger.info(f"Successfully added repo {repo.url}")
+            else:
+                logger.info(f"Failed to add repo {repo.url}")
 
-        logger.info(f"Successfully added {num_repos} repositories to the database")
+        # If curriculum learning is enabled, initialize repositories and sort them by difficulty
+        if curriculum_learning:
+            logger.info("Starting curriculum learning")
+            lean_git_repos, _, _ = self.sort_repositories_by_difficulty()
+        else:
+            logger.info("Starting without curriculum learning")
+
+        logger.info("Finding compatible repositories...")
+        repo_info_file = f"{RAID_DIR}/{DATA_DIR}/repo_info_compatible.json"
+        updated_repos = find_and_save_compatible_commits(repo_info_file, lean_git_repos)
+
+        lean_git_repos = [
+            LeanGitRepo(repo["url"], repo["commit"]) for repo in updated_repos
+        ]
+
         return lean_git_repos

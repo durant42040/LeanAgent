@@ -285,17 +285,7 @@ def find_and_save_compatible_commits(
 
         sha = None
         v = None
-        if "mathlib4" in url:
-            sha = "2b29e73438e240a427bcecc7c0fe19306beb1310"
-            v = "v4.8.0"
-        elif "SciLean" in url:
-            sha = "22d53b2f4e3db2a172e71da6eb9c916e62655744"
-            v = "v4.7.0"
-        elif "pfr" in url:
-            sha = "fa398a5b853c7e94e3294c45e50c6aee013a2687"
-            v = "v4.8.0-rc1"
-        else:
-            sha, v = get_compatible_commit(url)
+        sha, v = get_compatible_commit(url)
         if not sha:
             logger.info(f"Failed to find a compatible commit for {url}")
             continue
