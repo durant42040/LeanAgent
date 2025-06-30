@@ -16,8 +16,7 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from transformers import AutoTokenizer
 
-from common import (Batch, Context, Corpus, Example, format_state,
-                    get_all_pos_premises)
+from common import Batch, Context, Corpus, Example, format_state, get_all_pos_premises
 
 
 class RetrievalDataset(Dataset):

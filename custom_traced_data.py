@@ -16,10 +16,15 @@ from loguru import logger
 from lxml import etree
 from tqdm import tqdm
 
-from ..constants import (LEAN4_PACKAGES_DIR, LOAD_USED_PACKAGES_ONLY,
-                         NUM_WORKERS)
-from ..utils import (compute_md5, is_git_repo, to_dep_path, to_json_path,
-                     to_lean_path, to_xml_path)
+from ..constants import LEAN4_PACKAGES_DIR, LOAD_USED_PACKAGES_ONLY, NUM_WORKERS
+from ..utils import (
+    compute_md5,
+    is_git_repo,
+    to_dep_path,
+    to_json_path,
+    to_lean_path,
+    to_xml_path,
+)
 from .ast import *
 from .lean import LeanFile, LeanGitRepo, Pos, Theorem
 

@@ -14,8 +14,14 @@ from loguru import logger
 from torchmetrics import Metric
 from transformers import AutoTokenizer, T5ForConditionalGeneration
 
-from common import (IndexedCorpus, format_augmented_state, get_optimizers,
-                    load_checkpoint, remove_marks, zip_strict)
+from common import (
+    IndexedCorpus,
+    format_augmented_state,
+    get_optimizers,
+    load_checkpoint,
+    remove_marks,
+    zip_strict,
+)
 from retrieval.model import PremiseRetriever
 
 torch.set_float32_matmul_precision("medium")

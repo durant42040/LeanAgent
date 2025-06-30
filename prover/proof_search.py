@@ -12,9 +12,19 @@ from typing import List, Optional, Tuple
 
 import ray
 import torch
-from lean_dojo import (Dojo, DojoCrashError, DojoHardTimeoutError,
-                       DojoInitError, LeanError, LeanGitRepo, Pos,
-                       ProofFinished, ProofGivenUp, TacticState, Theorem)
+from lean_dojo import (
+    Dojo,
+    DojoCrashError,
+    DojoHardTimeoutError,
+    DojoInitError,
+    LeanError,
+    LeanGitRepo,
+    Pos,
+    ProofFinished,
+    ProofGivenUp,
+    TacticState,
+    Theorem,
+)
 from loguru import logger
 from ray.util.actor_pool import ActorPool
 from vllm import AsyncEngineArgs, AsyncLLMEngine, RequestOutput, SamplingParams

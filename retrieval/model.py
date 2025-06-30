@@ -17,8 +17,15 @@ from torch.distributed import barrier
 from tqdm import tqdm
 from transformers import AutoTokenizer, T5EncoderModel
 
-from common import (Context, Corpus, Premise, cpu_checkpointing_enabled,
-                    get_optimizers, load_checkpoint, zip_strict)
+from common import (
+    Context,
+    Corpus,
+    Premise,
+    cpu_checkpointing_enabled,
+    get_optimizers,
+    load_checkpoint,
+    zip_strict,
+)
 
 torch.set_float32_matmul_precision("medium")
 

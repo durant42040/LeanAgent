@@ -16,8 +16,7 @@ from typing import Generator, List, Optional, Tuple, Union
 
 from loguru import logger
 
-from .constants import (LEAN4_BUILD_DIR, LEAN4_PACKAGES_DIR, NUM_WORKERS,
-                        TMP_DIR)
+from .constants import LEAN4_BUILD_DIR, LEAN4_PACKAGES_DIR, NUM_WORKERS, TMP_DIR
 
 
 @contextmanager

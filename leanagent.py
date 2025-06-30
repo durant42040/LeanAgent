@@ -17,8 +17,11 @@ from lean_dojo import Theorem as LeanDojoTheorem
 from lean_dojo import *
 from loguru import logger
 from pytorch_lightning import seed_everything
-from pytorch_lightning.callbacks import (EarlyStopping, LearningRateMonitor,
-                                         ModelCheckpoint)
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    LearningRateMonitor,
+    ModelCheckpoint,
+)
 from pytorch_lightning.strategies import DDPStrategy
 from tqdm import tqdm
 
@@ -29,8 +32,7 @@ from retrieval.datamodule import RetrievalDataModule
 from retrieval.main import run_cli
 from retrieval.model import PremiseRetriever
 from utils.constants import *
-from utils.git import (find_and_save_compatible_commits,
-                       search_github_repositories)
+from utils.git import find_and_save_compatible_commits, search_github_repositories
 from utils.repository import save_sorted_repos, should_skip_repo
 
 # Set the seed for reproducibility
@@ -43,7 +45,6 @@ repos_for_merged_dataset = []
 repos_for_proving = []
 
 repos = []
-lean_git_repos = []
 
 
 PR_TITLE = "[LeanAgent] Proofs"
@@ -343,35 +344,6 @@ def replace_sorry_with_proof(proofs):
     logger.info("Finished replacing sorries with proofs!")
 
 
-def find_and_add_repositories(
-    num_repos: int,
-    dynamic_database_json_path: str,
-    db: DynamicDatabase,
-) -> List[LeanGitRepo]:
-    """
-    Discover repositories from GitHub and add them to the database.
-
-    Args:
-        num_repos: Number of repositories to discover
-        dynamic_database_json_path: Path to the database JSON file
-        db: The database to add repositories to
-
-    Returns:
-        List of discovered LeanGitRepo objects
-    """
-    lean_git_repos = search_github_repositories("Lean", num_repos, KNOWN_REPOSITORIES)
-
-    for i in range(len(lean_git_repos)):
-        repo = lean_git_repos[i]
-        logger.info(f"Processing {repo.url}")
-        result = db.add_repo_to_database(repo, dynamic_database_json_path)
-        if result is not None:
-            logger.info(f"Successfully added repo {repo.url}")
-
-    logger.info(f"Successfully added {num_repos} repositories to the database")
-    return lean_git_repos
-
-
 def setup_curriculum_learning(
     db: DynamicDatabase,
     dynamic_database_json_path: str,
@@ -454,10 +426,9 @@ def setup_repositories_and_db(
 
     logger.info(f"Found {num_repos} repositories")
 
-    lean_git_repos = find_and_add_repositories(
+    lean_git_repos = db.find_and_add_repositories(
         num_repos,
         dynamic_database_json_path,
-        db,
     )
 
     # If curriculum learning is enabled, initialize repositories and sort them by difficulty
@@ -484,7 +455,6 @@ def main():
     """
     global repos_for_merged_dataset
     global repos_for_proving
-    global lean_git_repos
     try:
         current_epoch = 0
         epochs_per_repo = 1

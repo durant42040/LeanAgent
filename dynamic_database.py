@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import datetime
 import json
-import math
 import os
 import random
 import shutil
+import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -1200,3 +1200,33 @@ class DynamicDatabase:
         self.to_json(dynamic_database_json_path)
 
         return "Done"
+
+    def find_and_add_repositories(
+        self, num_repos: int, dynamic_database_json_path: str
+    ) -> List[LeanGitRepo]:
+        """
+        Discover repositories from GitHub and add them to the database.
+
+        Args:
+            num_repos: Number of repositories to discover
+            dynamic_database_json_path: Path to the database JSON file
+
+        Returns:
+            List of discovered LeanGitRepo objects
+        """
+        from utils.constants import KNOWN_REPOSITORIES
+        from utils.git import search_github_repositories
+
+        lean_git_repos = search_github_repositories(
+            "Lean", num_repos, KNOWN_REPOSITORIES
+        )
+
+        for i in range(len(lean_git_repos)):
+            repo = lean_git_repos[i]
+            logger.info(f"Processing {repo.url}")
+            result = self.add_repo_to_database(repo, dynamic_database_json_path)
+            if result is not None:
+                logger.info(f"Successfully added repo {repo.url}")
+
+        logger.info(f"Successfully added {num_repos} repositories to the database")
+        return lean_git_repos
