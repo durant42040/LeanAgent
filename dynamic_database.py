@@ -1225,30 +1225,6 @@ class DynamicDatabase:
 
         return repo
 
-    def find_and_add_repositories(self, num_repos: int) -> List[LeanGitRepo]:
-        """
-        Discover repositories from GitHub and add them to the database.
-
-        Args:
-            num_repos: Number of repositories to discover
-
-        Returns:
-            List of discovered LeanGitRepo objects
-        """
-        lean_git_repos = search_github_repositories(
-            "Lean", num_repos, KNOWN_REPOSITORIES
-        )
-
-        for repo in lean_git_repos:
-            logger.info(f"Processing {repo.url}")
-            repo = self.trace_repository(repo)
-            if repo is not None:
-                self.add_repository(repo)
-                logger.info(f"Successfully added repo {repo.url}")
-            else:
-                logger.info(f"Failed to add repo {repo.url}")
-
-        return lean_git_repos
 
     def setup_repositories(
         self,

@@ -32,7 +32,6 @@ from retrieval.datamodule import RetrievalDataModule
 from retrieval.main import run_cli
 from retrieval.model import PremiseRetriever
 from utils.constants import *
-from utils.git import find_and_save_compatible_commits, search_github_repositories
 from utils.repository import should_skip_repo
 
 # Set the seed for reproducibility
