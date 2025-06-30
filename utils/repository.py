@@ -6,7 +6,7 @@ import json
 import os
 from typing import List, Tuple
 
-from dynamic_database import Repository
+from database.models import Repository
 from utils.constants import DATA_DIR, RAID_DIR
 
 

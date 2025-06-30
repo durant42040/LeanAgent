@@ -5,7 +5,7 @@ Utility functions for calculating and categorizing theorem difficulties.
 import math
 from typing import List, Union
 
-from dynamic_database import Theorem
+from database.models import Theorem
 
 
 def calculate_difficulty(theorem: Theorem) -> Union[float, None]:

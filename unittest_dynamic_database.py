@@ -15,16 +15,16 @@ from lean_dojo.data_extraction.lean import LeanGitRepo, Pos
 from loguru import logger
 
 import generate_benchmark_lean4
-from dynamic_database import (
+from database import (
+    DynamicDatabase,
     AnnotatedTactic,
     Annotation,
-    DynamicDatabase,
     Premise,
     PremiseFile,
     Repository,
     Theorem,
-    parse_pos,
 )
+from database.models.annotations import parse_pos
 from prover.proof_search import SearchResult, Status
 
 RAID_DIR = os.environ.get("RAID_DIR")

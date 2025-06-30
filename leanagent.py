@@ -26,7 +26,7 @@ from pytorch_lightning.strategies import DDPStrategy
 from tqdm import tqdm
 
 import generate_benchmark_lean4
-from dynamic_database import *
+from database import DynamicDatabase, Repository, Theorem, Annotation, AnnotatedTactic, Premise, PremiseFile
 from prover.proof_search import DistributedProver, SearchResult, Status
 from retrieval.datamodule import RetrievalDataModule
 from retrieval.main import run_cli
