@@ -639,78 +639,77 @@ def safe_remove_dir_path(dir_path):
                     raise
 
 
-@dataclass
-# """
-# A class that manages a collection of repositories containing Lean theorem proofs.
-# The DynamicDatabase class provides functionality for:
-# 1. Managing repositories (adding, retrieving, updating, deleting)
-# 2. Generating merged datasets from multiple repositories
-# 3. Splitting theorem data for training/validation/testing
-# 4. Exporting proofs, corpus data, and metadata
-# Attributes:
-#     repositories: List of Repository objects managed by the database
-# Methods:
-#     generate_merged_dataset: Creates a merged dataset from multiple repositories
-#     _merge_corpus: Merges premise files from multiple repositories
-#     _split_data: Splits theorem data using different strategies
-#     _split_randomly: Splits theorems randomly into train/val/test sets
-#     _split_by_premise: Splits theorems based on premises to ensure premise novelty
-#     _export_proofs: Exports theorem proofs in JSON format
-#     _export_traced_files: Exports information about traced files
-#     _export_metadata: Exports metadata about repositories and statistics
-#     add_repository: Adds a new repository to the database
-#     get_repository: Retrieves a repository by URL and commit
-#     update_repository: Updates an existing repository
-#     print_database_contents: Logs the current database contents
-#     delete_repository: Removes a repository from the database
-#     to_dict: Converts the database to a dictionary representation
-#     from_dict: Creates a database instance from a dictionary
-#     to_json: Serializes the database to a JSON file
-#     from_json: Deserializes a database from a JSON file
-#     update_json: Updates an existing JSON file with current database state
-# """
+"""
+A class that manages a collection of repositories containing Lean theorem proofs.
+The DynamicDatabase class provides functionality for:
+1. Managing repositories (adding, retrieving, updating, deleting)
+2. Generating merged datasets from multiple repositories
+3. Splitting theorem data for training/validation/testing
+4. Exporting proofs, corpus data, and metadata
+Attributes:
+    repositories: List of Repository objects managed by the database
+Methods:
+    generate_merged_dataset: Creates a merged dataset from multiple repositories
+    _merge_corpus: Merges premise files from multiple repositories
+    _split_data: Splits theorem data using different strategies
+    _split_randomly: Splits theorems randomly into train/val/test sets
+    _split_by_premise: Splits theorems based on premises to ensure premise novelty
+    _export_proofs: Exports theorem proofs in JSON format
+    _export_traced_files: Exports information about traced files
+    _export_metadata: Exports metadata about repositories and statistics
+    add_repository: Adds a new repository to the database
+    get_repository: Retrieves a repository by URL and commit
+    update_repository: Updates an existing repository
+    print_database_contents: Logs the current database contents
+    delete_repository: Removes a repository from the database
+    to_dict: Converts the database to a dictionary representation
+    from_dict: Creates a database instance from a dictionary
+    to_json: Serializes the database to a JSON file
+    from_json: Deserializes a database from a JSON file
+    update_json: Updates an existing JSON file with current database state
+"""
+
+
 class DynamicDatabase:
     repositories: List[Repository] = field(default_factory=list)
+    json_path: Optional[str] = field(default=None)
 
-    def __post_init__(self):
-        """Post-initialization hook for dataclass."""
-        pass
-
-    def __init__(self, file_path: Optional[str] = None):
+    def __init__(self, json_path: Optional[str] = None):
         """
         Initialize a DynamicDatabase instance.
 
         Args:
-            file_path: Optional path to a JSON file to load the database from.
+            json_path: Optional path to a JSON file to load the database from.
                       If provided and the file exists, loads the database from it.
                       If the file doesn't exist or is invalid, creates a new database.
         """
         # Initialize repositories as empty list
         self.repositories = []
+        self.json_path = json_path
 
-        # If file_path is provided, try to load from it
-        if file_path is not None:
-            if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
+        # If json_path is provided, try to load from it
+        if self.json_path is not None:
+            if not os.path.exists(self.json_path) or os.path.getsize(json_path) == 0:
                 # File doesn't exist or is empty, initialize it
-                logger.info(f"Initializing new database at {file_path}")
-                self.to_json(file_path)
+                logger.info(f"Initializing new database at {json_path}")
+                self.to_json(self.json_path)
             else:
                 try:
-                    logger.info(f"Loading database from {file_path}")
+                    logger.info(f"Loading database from {json_path}")
                     # Load the data from the file
-                    with open(file_path, "r") as f:
+                    with open(self.json_path, "r") as f:
                         data = json.load(f)
                     # Create database from the loaded data
                     loaded_db = self.from_dict(data)
                     # Copy repositories from loaded database
                     self.repositories = loaded_db.repositories
-                    logger.info(f"Loaded database from {file_path}")
+                    logger.info(f"Loaded database from {self.json_path}")
                 except json.JSONDecodeError:
                     # If there's an error decoding the JSON, initialize a new database
                     logger.warning(
-                        f"Error decoding JSON from {file_path}. Initializing new database."
+                        f"Error decoding JSON from {self.json_path}. Initializing new database."
                     )
-                    self.to_json(file_path)
+                    self.to_json(self.json_path)
 
     SPLIT = Dict[str, List[Theorem]]
 
@@ -1013,8 +1012,10 @@ class DynamicDatabase:
             db.add_repository(repo)
         return db
 
-    def to_json(self, file_path: str) -> None:
+    def to_json(self, file_path: str = None) -> None:
         """Serialize the database to a JSON file."""
+        if file_path is None:
+            file_path = self.json_path
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2, ensure_ascii=False)
 
@@ -1041,7 +1042,7 @@ class DynamicDatabase:
         self,
     ) -> Tuple[List[Repository], Dict, List[float]]:
         """
-        Sorts repositories by the difficulty of their theorems.
+        Sorts repositories by the difficulty of their theorems and optionally saves results.
 
         Returns:
             Tuple containing:
@@ -1106,6 +1107,52 @@ class DynamicDatabase:
             key=lambda r: len(categorized_theorems[r]["Easy"]),
             reverse=True,
         )
+
+        # Save results if path is provided
+        if self.json_path:
+            print("Sorted repositories. Saving now...")
+            self.to_json(self.json_path)
+            from utils.repository import save_sorted_repos
+
+            save_sorted_repos(sorted_repos, "sorted_repos.json")
+
+            # Print summary of theorem difficulties
+            categories = ["Easy", "Medium", "Hard", "Hard (No proof)"]
+            print("Summary of theorem difficulties by URL:")
+            for repo in sorted_repos:
+                print(f"\nURL: {repo.url}")
+                for category in categories:
+                    theorems = categorized_theorems[repo][category]
+                    print(f"  {category}: {len(theorems)} theorems")
+                    if theorems:
+                        sorted_theorems = sorted(
+                            theorems,
+                            key=lambda x: (x[4] if x[4] is not None else -float("inf")),
+                            reverse=True,
+                        )[:3]
+                        for name, path, start, end, diff in sorted_theorems:
+                            diff_str = f"{diff:.2f}" if diff is not None else "N/A"
+                            print(
+                                f"    - {name} (File: {path}, Difficulty: {diff_str})"
+                            )
+
+            print("\nOverall Statistics:")
+            total_theorems = sum(
+                len(theorems)
+                for categories in categorized_theorems.values()
+                for theorems in categories.values()
+            )
+            for category in categories:
+                count = sum(
+                    len(categories[category])
+                    for categories in categorized_theorems.values()
+                )
+                percentage = (count / total_theorems) * 100
+                print(f"{category}: {count} theorems ({percentage:.2f}%)")
+
+            print(
+                f"\nPercentile thresholds: Easy <= {percentiles[0]:.2f}, Medium <= {percentiles[1]:.2f}, Hard > {percentiles[1]:.2f}"
+            )
 
         return sorted_repos, categorized_theorems, percentiles
 
@@ -1201,15 +1248,12 @@ class DynamicDatabase:
 
         return "Done"
 
-    def find_and_add_repositories(
-        self, num_repos: int, dynamic_database_json_path: str
-    ) -> List[LeanGitRepo]:
+    def find_and_add_repositories(self, num_repos: int) -> List[LeanGitRepo]:
         """
         Discover repositories from GitHub and add them to the database.
 
         Args:
             num_repos: Number of repositories to discover
-            dynamic_database_json_path: Path to the database JSON file
 
         Returns:
             List of discovered LeanGitRepo objects
@@ -1224,7 +1268,7 @@ class DynamicDatabase:
         for i in range(len(lean_git_repos)):
             repo = lean_git_repos[i]
             logger.info(f"Processing {repo.url}")
-            result = self.add_repo_to_database(repo, dynamic_database_json_path)
+            result = self.add_repo_to_database(repo, self.json_path)
             if result is not None:
                 logger.info(f"Successfully added repo {repo.url}")
 

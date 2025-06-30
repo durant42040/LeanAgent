@@ -33,7 +33,7 @@ from retrieval.main import run_cli
 from retrieval.model import PremiseRetriever
 from utils.constants import *
 from utils.git import find_and_save_compatible_commits, search_github_repositories
-from utils.repository import save_sorted_repos, should_skip_repo
+from utils.repository import should_skip_repo
 
 # Set the seed for reproducibility
 random.seed(3407)  # https://arxiv.org/abs/2109.08203
@@ -344,67 +344,8 @@ def replace_sorry_with_proof(proofs):
     logger.info("Finished replacing sorries with proofs!")
 
 
-def setup_curriculum_learning(
-    db: DynamicDatabase,
-    dynamic_database_json_path: str,
-) -> List[LeanGitRepo]:
-    """
-    Set up curriculum learning by sorting repositories by difficulty.
-
-    Args:
-        db: The database containing repositories
-        dynamic_database_json_path: Path to the database JSON file
-
-    Returns:
-        List of LeanGitRepo objects sorted by difficulty
-    """
-    categories = ["Easy", "Medium", "Hard", "Hard (No proof)"]
-    sorted_repos, categorized_theorems, percentiles = (
-        db.sort_repositories_by_difficulty()
-    )
-    print("Sorted repositories. Saving now...")
-    db.to_json(dynamic_database_json_path)
-    save_sorted_repos(sorted_repos, "sorted_repos.json")
-
-    # Print summary of theorem difficulties
-    print("Summary of theorem difficulties by URL:")
-    for repo in sorted_repos:
-        print(f"\nURL: {repo.url}")
-        for category in categories:
-            theorems = categorized_theorems[repo][category]
-            print(f"  {category}: {len(theorems)} theorems")
-            if theorems:
-                sorted_theorems = sorted(
-                    theorems,
-                    key=lambda x: (x[2] if x[2] is not None else -float("inf")),
-                    reverse=True,
-                )[:3]
-                for name, path, start, end, diff in sorted_theorems:
-                    diff_str = f"{diff:.2f}" if diff is not None else "N/A"
-                    print(f"    - {name} (File: {path}, Difficulty: {diff_str})")
-
-    print("\nOverall Statistics:")
-    total_theorems = sum(
-        len(theorems)
-        for categories in categorized_theorems.values()
-        for theorems in categories.values()
-    )
-    for category in categories:
-        count = sum(
-            len(categories[category]) for categories in categorized_theorems.values()
-        )
-        percentage = (count / total_theorems) * 100
-        print(f"{category}: {count} theorems ({percentage:.2f}%)")
-
-    print(
-        f"\nPercentile thresholds: Easy <= {percentiles[0]:.2f}, Medium <= {percentiles[1]:.2f}, Hard > {percentiles[1]:.2f}"
-    )
-
-    return sorted_repos
-
-
 def setup_repositories_and_db(
-    dynamic_database_json_path: str,
+    db: DynamicDatabase,
     num_repos: int,
     curriculum_learning: bool,
 ) -> Tuple[DynamicDatabase, List[LeanGitRepo]]:
@@ -422,19 +363,15 @@ def setup_repositories_and_db(
 
     # Initialize the database if it doesn't exist or is empty
     logger.info("Starting the main process")
-    db = DynamicDatabase(file_path=dynamic_database_json_path)
 
     logger.info(f"Found {num_repos} repositories")
 
-    lean_git_repos = db.find_and_add_repositories(
-        num_repos,
-        dynamic_database_json_path,
-    )
+    lean_git_repos = db.find_and_add_repositories(num_repos)
 
     # If curriculum learning is enabled, initialize repositories and sort them by difficulty
     if curriculum_learning:
         logger.info("Starting curriculum learning")
-        lean_git_repos = setup_curriculum_learning(db, dynamic_database_json_path)
+        lean_git_repos, _, _ = db.sort_repositories_by_difficulty()
     else:
         logger.info("Starting without curriculum learning")
 
@@ -446,7 +383,7 @@ def setup_repositories_and_db(
         LeanGitRepo(repo["url"], repo["commit"]) for repo in updated_repos
     ]
 
-    return db, lean_git_repos
+    return lean_git_repos
 
 
 def main():
@@ -482,8 +419,9 @@ def main():
 
         # Initialize database and discover repositories
         if is_main_process:
-            db, lean_git_repos = setup_repositories_and_db(
-                dynamic_database_json_path,
+            db = DynamicDatabase(json_path=dynamic_database_json_path)
+            lean_git_repos = setup_repositories_and_db(
+                db,
                 num_repos,
                 curriculum_learning,
             )
@@ -820,7 +758,7 @@ def main():
                         prove_sorry_theorems(
                             db, prover, dynamic_database_json_path, repos_for_proving
                         )
-                    db.to_json(dynamic_database_json_path)
+                    db.to_json()
 
                     logger.info("Finished searching for proofs of sorry theorems")
 
