@@ -1,33 +1,24 @@
 # import all the necessary libraries
 import json
-import math
 import os
 import pickle
 import random
 import sys
-import time
 import traceback
-from collections import defaultdict
-from copy import copy
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import pytorch_lightning as pl
 import ray
 import torch
-from lean_dojo import *
-from lean_dojo import LeanGitRepo, Pos
-from lean_dojo import Theorem
 from lean_dojo import Theorem as LeanDojoTheorem
+from lean_dojo import *
 from loguru import logger
 from pytorch_lightning import seed_everything
-from pytorch_lightning.callbacks import (
-    EarlyStopping,
-    LearningRateMonitor,
-    ModelCheckpoint,
-)
+from pytorch_lightning.callbacks import (EarlyStopping, LearningRateMonitor,
+                                         ModelCheckpoint)
 from pytorch_lightning.strategies import DDPStrategy
 from tqdm import tqdm
 
@@ -38,11 +29,9 @@ from retrieval.datamodule import RetrievalDataModule
 from retrieval.main import run_cli
 from retrieval.model import PremiseRetriever
 from utils.constants import *
-from utils.git import (
-    find_and_save_compatible_commits,
-    search_github_repositories,
-)
-from utils.repository import write_skip_file, should_skip_repo, save_sorted_repos, load_sorted_repos
+from utils.git import (find_and_save_compatible_commits,
+                       search_github_repositories)
+from utils.repository import save_sorted_repos, should_skip_repo
 
 # Set the seed for reproducibility
 random.seed(3407)  # https://arxiv.org/abs/2109.08203
@@ -55,7 +44,7 @@ repos_for_proving = []
 
 repos = []
 lean_git_repos = []
-personal_access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
+
 
 PR_TITLE = "[LeanAgent] Proofs"
 
@@ -149,30 +138,34 @@ def process_theorem_batch(
     theorem_map = {ldj_thm: thm for thm, ldj_thm in theorem_batch}
 
     for result in results:
-        if isinstance(result, SearchResult):
-            if result.theorem in theorem_map:
-                theorem = theorem_map[result.theorem]
-                if result.status == Status.PROVED:
-                    logger.info(f"Proof found for {theorem.full_name}")
-                    traced_tactics = [
-                        AnnotatedTactic(
-                            tactic=tactic,
-                            annotated_tactic=(tactic, []),
-                            state_before="",
-                            state_after="",
-                        )
-                        for tactic in result.proof
-                    ]
-                    theorem.traced_tactics = traced_tactics
-                    repo.change_sorry_to_proven(theorem, PROOF_LOG_FILE_NAME)
-                    db.update_repository(repo)
-                    logger.info(f"Updated theorem {theorem.full_name} in the database")
-                else:
-                    logger.info(f"No proof found for {theorem.full_name}")
-            else:
-                logger.warning(f"Theorem not found in theorem_map: {result.theorem}")
-        else:
+        if not isinstance(result, SearchResult):
             logger.warning(f"Unexpected result type")
+            continue
+
+        if not result.theorem in theorem_map:
+            logger.warning(f"Theorem not found in theorem_map: {result.theorem}")
+            continue
+
+        theorem = theorem_map[result.theorem]
+
+        if not result.status == Status.PROVED:
+            logger.info(f"No proof found for {theorem.full_name}")
+            continue
+
+        logger.info(f"Proof found for {theorem.full_name}")
+        traced_tactics = [
+            AnnotatedTactic(
+                tactic=tactic,
+                annotated_tactic=(tactic, []),
+                state_before="",
+                state_after="",
+            )
+            for tactic in result.proof
+        ]
+        theorem.traced_tactics = traced_tactics
+        repo.change_sorry_to_proven(theorem, PROOF_LOG_FILE_NAME)
+        db.update_repository(repo)
+        logger.info(f"Updated theorem {theorem.full_name} in the database")
 
     db.to_json(dynamic_database_json_path)
 
@@ -187,26 +180,25 @@ def save_progress(all_encountered_theorems):
 def load_encountered_theorems(file_path):
     """Loads the theorems that have been encountered."""
     all_encountered_theorems = set()
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, "rb") as f:
-                file_content = f.read()
-                if file_content:  # Check if the file is not empty
-                    all_encountered_theorems = pickle.loads(file_content)
-                else:
-                    logger.warning(
-                        f"The file {file_path} is empty. Starting with an empty set."
-                    )
-        except (EOFError, pickle.UnpicklingError) as e:
-            logger.warning(
-                f"Error reading {file_path}: {e}. Starting with an empty set."
-            )
-        except Exception as e:
-            logger.error(
-                f"Unexpected error when reading {file_path}: {e}. Starting with an empty set."
-            )
-    else:
+    if not os.path.exists(file_path):
         logger.info(f"The file {file_path} does not exist. Starting with an empty set.")
+        return set()
+
+    try:
+        with open(file_path, "rb") as f:
+            file_content = f.read()
+            if file_content:  # Check if the file is not empty
+                all_encountered_theorems = pickle.loads(file_content)
+            else:
+                logger.warning(
+                    f"The file {file_path} is empty. Starting with an empty set."
+                )
+    except (EOFError, pickle.UnpicklingError) as e:
+        logger.warning(f"Error reading {file_path}: {e}. Starting with an empty set.")
+    except Exception as e:
+        logger.error(
+            f"Unexpected error when reading {file_path}: {e}. Starting with an empty set."
+        )
 
     return all_encountered_theorems
 
@@ -353,8 +345,6 @@ def replace_sorry_with_proof(proofs):
 
 def find_and_add_repositories(
     num_repos: int,
-    personal_access_token: str,
-    repo_dir: str,
     dynamic_database_json_path: str,
     db: DynamicDatabase,
 ) -> List[LeanGitRepo]:
@@ -363,17 +353,13 @@ def find_and_add_repositories(
 
     Args:
         num_repos: Number of repositories to discover
-        personal_access_token: GitHub personal access token
-        repo_dir: Directory to store repositories
         dynamic_database_json_path: Path to the database JSON file
         db: The database to add repositories to
 
     Returns:
         List of discovered LeanGitRepo objects
     """
-    lean_git_repos = search_github_repositories(
-        "Lean", num_repos, personal_access_token, KNOWN_REPOSITORIES, repo_dir
-    )
+    lean_git_repos = search_github_repositories("Lean", num_repos, KNOWN_REPOSITORIES)
 
     for i in range(len(lean_git_repos)):
         repo = lean_git_repos[i]
@@ -389,7 +375,6 @@ def find_and_add_repositories(
 def setup_curriculum_learning(
     db: DynamicDatabase,
     dynamic_database_json_path: str,
-    repo_info_file: str,
 ) -> List[LeanGitRepo]:
     """
     Set up curriculum learning by sorting repositories by difficulty.
@@ -397,12 +382,14 @@ def setup_curriculum_learning(
     Args:
         db: The database containing repositories
         dynamic_database_json_path: Path to the database JSON file
-        repo_info_file: Path to save repository information
 
     Returns:
         List of LeanGitRepo objects sorted by difficulty
     """
-    sorted_repos, categorized_theorems, percentiles = db.sort_repositories_by_difficulty()
+    categories = ["Easy", "Medium", "Hard", "Hard (No proof)"]
+    sorted_repos, categorized_theorems, percentiles = (
+        db.sort_repositories_by_difficulty()
+    )
     print("Sorted repositories. Saving now...")
     db.to_json(dynamic_database_json_path)
     save_sorted_repos(sorted_repos, "sorted_repos.json")
@@ -411,7 +398,7 @@ def setup_curriculum_learning(
     print("Summary of theorem difficulties by URL:")
     for repo in sorted_repos:
         print(f"\nURL: {repo.url}")
-        for category in ["Easy", "Medium", "Hard", "Hard (No proof)"]:
+        for category in categories:
             theorems = categorized_theorems[repo][category]
             print(f"  {category}: {len(theorems)} theorems")
             if theorems:
@@ -430,7 +417,7 @@ def setup_curriculum_learning(
         for categories in categorized_theorems.values()
         for theorems in categories.values()
     )
-    for category in ["Easy", "Medium", "Hard", "Hard (No proof)"]:
+    for category in categories:
         count = sum(
             len(categories[category]) for categories in categorized_theorems.values()
         )
@@ -441,56 +428,13 @@ def setup_curriculum_learning(
         f"\nPercentile thresholds: Easy <= {percentiles[0]:.2f}, Medium <= {percentiles[1]:.2f}, Hard > {percentiles[1]:.2f}"
     )
 
-    logger.info("Finding compatible repositories...")
-    updated_repos = find_and_save_compatible_commits(repo_info_file, sorted_repos)
-    lean_git_repos = [
-        LeanGitRepo(repo["url"], repo["commit"]) for repo in updated_repos
-    ]
-    logger.info("Finished finding compatible repositories")
-
-    return lean_git_repos
-
-
-def load_repository_info(repo_info_file: str) -> List[LeanGitRepo]:
-    """
-    Load repository information from file and create LeanGitRepo objects.
-
-    Args:
-        repo_info_file: Path to the repository information file
-
-    Returns:
-        List of LeanGitRepo objects
-    """
-    # All processes wait for the file to be created and then read from it
-    max_attempts = 30
-    for attempt in range(max_attempts):
-        try:
-            with open(repo_info_file, "r") as f:
-                repo_info = json.load(f)
-            break
-        except (json.JSONDecodeError, FileNotFoundError):
-            if attempt == max_attempts - 1:
-                raise Exception(
-                    "Failed to read repository information after multiple attempts"
-                )
-            time.sleep(1)
-
-    # Load compatible repositories
-    lean_git_repos = [
-        LeanGitRepo(info["url"].replace(".git", ""), info["commit"])
-        for info in repo_info
-    ]
-
-    return lean_git_repos
+    return sorted_repos
 
 
 def setup_repositories_and_db(
     dynamic_database_json_path: str,
     num_repos: int,
     curriculum_learning: bool,
-    is_main_process: bool,
-    personal_access_token: str,
-    repo_dir: str,
 ) -> Tuple[DynamicDatabase, List[LeanGitRepo]]:
     """
     Initialize the database and discover repositories.
@@ -499,59 +443,37 @@ def setup_repositories_and_db(
         dynamic_database_json_path: Path to the database JSON file
         num_repos: Number of repositories to discover
         curriculum_learning: Whether to enable curriculum learning
-        is_main_process: Whether this is the main process
-        personal_access_token: GitHub personal access token
-        repo_dir: Directory to store repositories
 
     Returns:
         Tuple of (database, lean_git_repos)
     """
-    db = None
-    lean_git_repos = []
-    repo_info_file = f"{RAID_DIR}/{DATA_DIR}/repo_info_compatible.json"
 
     # Initialize the database if it doesn't exist or is empty
-    if is_main_process:
-        logger.info("Starting the main process")
-        db = DynamicDatabase(file_path=dynamic_database_json_path)
+    logger.info("Starting the main process")
+    db = DynamicDatabase(file_path=dynamic_database_json_path)
 
     logger.info(f"Found {num_repos} repositories")
+
+    lean_git_repos = find_and_add_repositories(
+        num_repos,
+        dynamic_database_json_path,
+        db,
+    )
 
     # If curriculum learning is enabled, initialize repositories and sort them by difficulty
     if curriculum_learning:
         logger.info("Starting curriculum learning")
-        if is_main_process:
-            lean_git_repos = find_and_add_repositories(
-                num_repos,
-                personal_access_token,
-                repo_dir,
-                dynamic_database_json_path,
-                db,
-            )
-            lean_git_repos = setup_curriculum_learning(
-                db, dynamic_database_json_path, repo_info_file
-            )
+        lean_git_repos = setup_curriculum_learning(db, dynamic_database_json_path)
     else:
         logger.info("Starting without curriculum learning")
-        if is_main_process:
-            lean_git_repos = find_and_add_repositories(
-                num_repos,
-                personal_access_token,
-                repo_dir,
-                dynamic_database_json_path,
-                db,
-            )
-            logger.info("Finding compatible repositories...")
-            updated_repos = find_and_save_compatible_commits(
-                repo_info_file, lean_git_repos
-            )
-            lean_git_repos = [
-                LeanGitRepo(repo["url"], repo["commit"]) for repo in updated_repos
-            ]
-            logger.info("Finished finding compatible repositories")
 
-    # Load repository information for all processes
-    lean_git_repos = load_repository_info(repo_info_file)
+    logger.info("Finding compatible repositories...")
+    repo_info_file = f"{RAID_DIR}/{DATA_DIR}/repo_info_compatible.json"
+    updated_repos = find_and_save_compatible_commits(repo_info_file, lean_git_repos)
+
+    lean_git_repos = [
+        LeanGitRepo(repo["url"], repo["commit"]) for repo in updated_repos
+    ]
 
     return db, lean_git_repos
 
@@ -589,14 +511,12 @@ def main():
         is_main_process = int(os.environ.get("LOCAL_RANK", "0")) == 0
 
         # Initialize database and discover repositories
-        db, lean_git_repos = setup_repositories_and_db(
-            dynamic_database_json_path,
-            num_repos,
-            curriculum_learning,
-            is_main_process,
-            personal_access_token,
-            REPO_DIR,
-        )
+        if is_main_process:
+            db, lean_git_repos = setup_repositories_and_db(
+                dynamic_database_json_path,
+                num_repos,
+                curriculum_learning,
+            )
 
         # Iterate over each repository and lambda value
         for i in range(num_repos):
@@ -937,7 +857,6 @@ def main():
                     if ray.is_initialized():
                         logger.info("Shutting down Ray after proving")
                         ray.shutdown()
-
 
                 logger.info("Finished processing the repository")
                 current_epoch += epochs_per_repo

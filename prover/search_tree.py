@@ -8,7 +8,8 @@ from enum import Enum
 from functools import total_ordering
 from typing import Iterable, List, Optional, Tuple, Union
 
-from lean_dojo import LeanError, ProofFinished, ProofGivenUp, TacticState, TimeoutError
+from lean_dojo import (LeanError, ProofFinished, ProofGivenUp, TacticState,
+                       TimeoutError)
 
 
 class Status(Enum):

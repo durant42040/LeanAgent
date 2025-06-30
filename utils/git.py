@@ -19,21 +19,22 @@ from loguru import logger
 import generate_benchmark_lean4
 
 
-def clone_repo(repo_url: str, repo_dir: str) -> Tuple[str, str]:
+def clone_repo(repo_url: str) -> Tuple[str, str]:
     """Clone a git repository and return the path to the repository and its sha.
 
     Args:
         repo_url: The URL of the repository to clone
-        repo_dir: The base directory where repositories are stored
 
     Returns:
         Tuple of (repo_path, sha) where repo_path is the local path to the cloned repo
         and sha is the latest commit hash
     """
     repo_name = "/".join(repo_url.split("/")[-2:]).replace(".git", "")
+    RAID_DIR = os.environ.get("RAID_DIR")
+
     logger.info(f"Cloning {repo_url}")
     logger.info(f"Repo name: {repo_name}")
-    repo_name = repo_dir + "/" + repo_name
+    repo_name = f"{RAID_DIR}/repos_new/{repo_name}"
     if os.path.exists(repo_name):
         print(f"Deleting existing repository directory: {repo_name}")
         shutil.rmtree(repo_name)
@@ -312,30 +313,19 @@ def find_and_save_compatible_commits(
 def search_github_repositories(
     language: str = "Lean",
     num_repos: int = 10,
-    personal_access_token: str = None,
     known_repositories: List[str] = None,
-    repo_dir: str = None,
 ) -> List[LeanGitRepo]:
     """Search for the given number of repositories on GitHub that have the given language.
 
     Args:
         language: Programming language to search for
         num_repos: Number of repositories to find
-        personal_access_token: GitHub personal access token
         known_repositories: List of repository names to skip
-        repo_dir: Directory to clone repositories into
 
     Returns:
         List of LeanGitRepo objects for the found repositories
     """
-    if personal_access_token is None:
-        personal_access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
-
-    if known_repositories is None:
-        known_repositories = []
-
-    if repo_dir is None:
-        repo_dir = os.environ.get("RAID_DIR", "") + "/repos_new"
+    personal_access_token = os.environ.get("GITHUB_ACCESS_TOKEN")
 
     headers = {"Authorization": personal_access_token}
     query_params = {
@@ -368,7 +358,7 @@ def search_github_repositories(
                     name = None
                     try:
                         clone_url = repo["clone_url"]
-                        repo_name, sha = clone_repo(clone_url, repo_dir)
+                        repo_name, sha = clone_repo(clone_url)
                         name = repo_name
                         url = clone_url.replace(".git", "")
                         lean_git_repo = LeanGitRepo(url, sha)

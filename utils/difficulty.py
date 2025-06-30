@@ -3,7 +3,8 @@ Utility functions for calculating and categorizing theorem difficulties.
 """
 
 import math
-from typing import Union, List
+from typing import List, Union
+
 from dynamic_database import Theorem
 
 
@@ -30,4 +31,4 @@ def categorize_difficulty(
     elif difficulty <= percentiles[1]:
         return "Medium"
     else:
-        return "Hard" 
+        return "Hard"

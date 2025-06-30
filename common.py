@@ -14,9 +14,8 @@ from deepspeed.ops.adam import DeepSpeedCPUAdam, FusedAdam
 from lean_dojo import Pos
 from loguru import logger
 from pytorch_lightning.strategies.deepspeed import DeepSpeedStrategy
-from pytorch_lightning.utilities.deepspeed import (
-    convert_zero_checkpoint_to_fp32_state_dict,
-)
+from pytorch_lightning.utilities.deepspeed import \
+    convert_zero_checkpoint_to_fp32_state_dict
 from transformers import get_cosine_schedule_with_warmup
 
 from leanagent_utils import MARK_END_SYMBOL, MARK_START_SYMBOL, remove_marks

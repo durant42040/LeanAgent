@@ -5,14 +5,15 @@ Utility functions for managing repository data, operations, and skipping functio
 import json
 import os
 from typing import List, Tuple
+
 from dynamic_database import Repository
-from utils.constants import RAID_DIR, DATA_DIR
+from utils.constants import DATA_DIR, RAID_DIR
 
 
 def save_sorted_repos(sorted_repos: List[Repository], file_path: str) -> None:
     """
     Saves the sorted repositories to a file.
-    
+
     Args:
         sorted_repos: List of Repository objects to save
         file_path: Path to the file where repositories will be saved
@@ -28,10 +29,10 @@ def save_sorted_repos(sorted_repos: List[Repository], file_path: str) -> None:
 def load_sorted_repos(file_path: str) -> List[Tuple[str, str, str]]:
     """
     Loads the sorted repositories from a file.
-    
+
     Args:
         file_path: Path to the file containing repository data
-        
+
     Returns:
         List of tuples containing (url, commit, name) for each repository
     """
@@ -50,7 +51,7 @@ def write_skip_file(repo_url: str) -> None:
 def should_skip_repo() -> tuple[bool, str | None]:
     """
     Checks if a repository should be skipped.
-    
+
     Returns:
         Tuple of (should_skip: bool, repo_url: str | None)
         - should_skip: True if a repository should be skipped, False otherwise
@@ -61,4 +62,4 @@ def should_skip_repo() -> tuple[bool, str | None]:
         with open(skip_file_path, "r") as f:
             repo_url = f.read().strip()
         return True, repo_url
-    return False, None 
+    return False, None

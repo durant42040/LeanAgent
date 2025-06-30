@@ -11,15 +11,8 @@ from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
 from transformers import AutoTokenizer, ByT5Tokenizer
 
-from common import (
-    Batch,
-    Corpus,
-    Example,
-    format_augmented_state,
-    format_state,
-    format_tactic,
-    remove_marks,
-)
+from common import (Batch, Corpus, Example, format_augmented_state,
+                    format_state, format_tactic, remove_marks)
 
 
 class GeneratorDataset(Dataset):

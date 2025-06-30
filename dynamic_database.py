@@ -2,24 +2,25 @@ from __future__ import annotations
 
 import datetime
 import json
+import math
 import os
 import random
 import shutil
-import math
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple, Union
 
-from lean_dojo.data_extraction.lean import Pos
-from lean_dojo import LeanGitRepo
 import lean_dojo
+import numpy as np
+from lean_dojo import LeanGitRepo
+from lean_dojo.data_extraction.lean import Pos
 from loguru import logger
 from tqdm import tqdm
-import numpy as np
 
-from utils.constants import RAID_DIR, DATA_DIR, BATCH_SIZE
+from utils.constants import BATCH_SIZE, DATA_DIR, RAID_DIR
 from utils.difficulty import calculate_difficulty, categorize_difficulty
+
 
 def parse_pos(pos_str):
     """
@@ -678,7 +679,7 @@ class DynamicDatabase:
     def __init__(self, file_path: Optional[str] = None):
         """
         Initialize a DynamicDatabase instance.
-        
+
         Args:
             file_path: Optional path to a JSON file to load the database from.
                       If provided and the file exists, loads the database from it.
@@ -686,13 +687,10 @@ class DynamicDatabase:
         """
         # Initialize repositories as empty list
         self.repositories = []
-        
+
         # If file_path is provided, try to load from it
         if file_path is not None:
-            if (
-                not os.path.exists(file_path)
-                or os.path.getsize(file_path) == 0
-            ):
+            if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
                 # File doesn't exist or is empty, initialize it
                 logger.info(f"Initializing new database at {file_path}")
                 self.to_json(file_path)
@@ -1039,10 +1037,12 @@ class DynamicDatabase:
 
         existing_db.to_json(file_path)
 
-    def sort_repositories_by_difficulty(self) -> Tuple[List[Repository], Dict, List[float]]:
+    def sort_repositories_by_difficulty(
+        self,
+    ) -> Tuple[List[Repository], Dict, List[float]]:
         """
         Sorts repositories by the difficulty of their theorems.
-        
+
         Returns:
             Tuple containing:
             - List of repositories sorted by difficulty (most easy theorems first)
@@ -1109,14 +1109,16 @@ class DynamicDatabase:
 
         return sorted_repos, categorized_theorems, percentiles
 
-    def add_repo_to_database(self, repo, dynamic_database_json_path: str) -> Optional[str]:
+    def add_repo_to_database(
+        self, repo, dynamic_database_json_path: str
+    ) -> Optional[str]:
         """
         Adds a repository to the dynamic database.
-        
+
         Args:
             repo: The LeanGitRepo object to add
             dynamic_database_json_path: Path to the database JSON file
-            
+
         Returns:
             "Done" if successful, None if failed
         """
@@ -1137,6 +1139,7 @@ class DynamicDatabase:
             v = "v4.8.0-rc1"
         else:
             from utils.git import get_compatible_commit
+
             sha, v = get_compatible_commit(url)
 
         if not sha:
@@ -1150,15 +1153,18 @@ class DynamicDatabase:
         dir_name = repo.url.split("/")[-1] + "_" + sha
         dst_dir = RAID_DIR + "/" + DATA_DIR + "/" + dir_name
         logger.info(f"Generating benchmark at {dst_dir}")
-        
+
         import generate_benchmark_lean4
+
         traced_repo, _, _, total_theorems = generate_benchmark_lean4.main(
             repo.url, sha, dst_dir
         )
         if not traced_repo:
             logger.info(f"Failed to trace {url}")
             return None
-        if total_theorems < 3 * BATCH_SIZE:  # Should be enough theorems for train/val/test
+        if (
+            total_theorems < 3 * BATCH_SIZE
+        ):  # Should be enough theorems for train/val/test
             logger.info(f"No theorems found in {url}")
             return None
         logger.info(f"Finished generating benchmark at {dst_dir}")
@@ -1192,5 +1198,5 @@ class DynamicDatabase:
         logger.info("After adding new repo:")
         self.print_database_contents()
         self.to_json(dynamic_database_json_path)
-        
+
         return "Done"

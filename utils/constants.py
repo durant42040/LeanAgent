@@ -5,7 +5,6 @@ Constants and configuration for LeanAgent.
 import os
 from typing import List
 
-
 # Batch size for training
 BATCH_SIZE = 4
 
@@ -252,4 +251,4 @@ KNOWN_REPOSITORIES: List[str] = [
     "madvorak/chomsky",
     "T-Brick/ControlFlow",
     "pa-ba/guarded-lean",
-] 
+]
