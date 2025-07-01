@@ -7,7 +7,7 @@ import sys
 import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Set, Tuple, Union
 
 import numpy as np
 import pytorch_lightning as pl
@@ -26,7 +26,7 @@ from pytorch_lightning.strategies import DDPStrategy
 from tqdm import tqdm
 
 import generate_benchmark_lean4
-from database import DynamicDatabase, Repository, Theorem, Annotation, AnnotatedTactic, Premise, PremiseFile
+from database import DynamicDatabase, Theorem, AnnotatedTactic
 from prover.proof_search import DistributedProver, SearchResult, Status
 from retrieval.datamodule import RetrievalDataModule
 from retrieval.main import run_cli

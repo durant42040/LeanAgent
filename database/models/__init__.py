@@ -5,9 +5,9 @@ from .repository import Repository
 
 __all__ = [
     "Annotation",
-    "AnnotatedTactic", 
+    "AnnotatedTactic",
     "Theorem",
     "Premise",
     "PremiseFile",
     "Repository",
-] 
+]

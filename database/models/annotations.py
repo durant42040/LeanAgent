@@ -38,13 +38,14 @@ class Annotation:
     """
     Annotation class represents a code annotation with its full name, definition path,
     and position details.
-    
+
     Attributes:
         full_name (str): The full name of the annotation.
         def_path (str): The file path where the annotation is defined.
         def_pos (Pos): The starting position of the annotation definition.
         def_end_pos (Pos): The ending position of the annotation definition.
     """
+
     full_name: str
     def_path: str
     def_pos: Pos
@@ -75,15 +76,16 @@ class Annotation:
 @dataclass
 class AnnotatedTactic:
     """
-    AnnotatedTactic is a data class that represents a tactic with its annotations 
+    AnnotatedTactic is a data class that represents a tactic with its annotations
     and states before and after its application.
-    
+
     Attributes:
         tactic (str): The tactic applied.
         annotated_tactic (Tuple[str, List[Annotation]]): A tuple containing the tactic and a list of annotations.
         state_before (str): The state before the tactic is applied.
         state_after (str): The state after the tactic is applied.
     """
+
     tactic: str
     annotated_tactic: Tuple[str, List[Annotation]]
     state_before: str
@@ -115,4 +117,4 @@ class AnnotatedTactic:
             ],
             "state_before": self.state_before,
             "state_after": self.state_after,
-        } 
+        }

@@ -13,7 +13,7 @@ from .annotations import parse_pos
 class Premise:
     """
     A class representing a Premise with various attributes.
-    
+
     Attributes:
         full_name (str): The full name of the premise.
         code (str): The code associated with the premise.
@@ -21,6 +21,7 @@ class Premise:
         end (Pos): The ending position of the premise.
         kind (str): The kind or type of the premise.
     """
+
     full_name: str
     code: str
     start: Pos
@@ -55,12 +56,13 @@ class Premise:
 class PremiseFile:
     """
     Represents a file containing premises and their associated imports.
-    
+
     Attributes:
         path (Path): The file path.
         imports (List[str]): A list of import statements.
         premises (List[Premise]): A list of premises.
     """
+
     path: Path
     imports: List[str]
     premises: List[Premise]
@@ -80,4 +82,4 @@ class PremiseFile:
             "path": str(self.path),
             "imports": self.imports,
             "premises": [p.to_dict() for p in self.premises],
-        } 
+        }

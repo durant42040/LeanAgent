@@ -1,12 +1,19 @@
 from .dynamic_database import DynamicDatabase
-from .models import Repository, Theorem, Annotation, AnnotatedTactic, Premise, PremiseFile
+from .models import (
+    Repository,
+    Theorem,
+    Annotation,
+    AnnotatedTactic,
+    Premise,
+    PremiseFile,
+)
 
 __all__ = [
     "DynamicDatabase",
-    "Repository", 
+    "Repository",
     "Theorem",
     "Annotation",
     "AnnotatedTactic",
     "Premise",
     "PremiseFile",
-] 
+]

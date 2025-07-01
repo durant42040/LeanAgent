@@ -17,6 +17,7 @@ from lean_dojo import LeanGitRepo
 from loguru import logger
 
 import generate_benchmark_lean4
+from utils.lean import get_lean4_version_from_config, is_supported_version
 
 
 def clone_repo(repo_url: str) -> Tuple[str, str]:
@@ -208,8 +209,8 @@ def get_compatible_commit(url: str) -> Tuple[Optional[str], Optional[str]]:
         repo = LeanGitRepo(new_url, latest_commit)
         logger.info(f"Getting config for {url}")
         config = repo.get_config("lean-toolchain")
-        v = generate_benchmark_lean4.get_lean4_version_from_config(config["content"])
-        if generate_benchmark_lean4.is_supported_version(v):
+        v = get_lean4_version_from_config(config["content"])
+        if is_supported_version(v):
             logger.info(f"Latest commit compatible for url {url}")
             return latest_commit, v
 
@@ -251,10 +252,8 @@ def get_compatible_commit(url: str) -> Tuple[Optional[str], Optional[str]]:
             new_url = url.replace(".git", "")
             repo = LeanGitRepo(new_url, commit)
             config = repo.get_config("lean-toolchain")
-            v = generate_benchmark_lean4.get_lean4_version_from_config(
-                config["content"]
-            )
-            if generate_benchmark_lean4.is_supported_version(v):
+            v = get_lean4_version_from_config(config["content"])
+            if is_supported_version(v):
                 logger.info(f"Found compatible commit {commit} for {url}")
                 return commit, v
 
@@ -337,36 +336,36 @@ def search_github_repositories(
             params=query_params,
         )
 
-        if response.status_code == 200:
-            repositories = response.json()["items"]
-            for repo in repositories:
-                if cloned_count >= num_repos:
-                    break
-                repo_full_name = repo["full_name"]
-                logger.info(f"Processing {repo_full_name}")
-                if repo_full_name not in known_repositories:
-                    name = None
-                    try:
-                        clone_url = repo["clone_url"]
-                        repo_name, sha = clone_repo(clone_url)
-                        name = repo_name
-                        url = clone_url.replace(".git", "")
-                        lean_git_repo = LeanGitRepo(url, sha)
-                        lean_git_repos.append(lean_git_repo)
-                        cloned_count += 1
-                        logger.info(f"Cloned {repo_full_name}")
-                    except Exception as e:
-                        if name:
-                            shutil.rmtree(name)
-                        logger.info(f"Failed to clone {repo_full_name} because of {e}")
-                else:
-                    logger.info(
-                        f"Skipping {repo_full_name} since it is a known repository"
-                    )
-            page += 1
-        else:
+        if not response.status_code == 200:
             logger.info("Failed to search GitHub", response.status_code)
             break
+
+        repositories = response.json()["items"]
+        logger.info(f"Found {len(repositories)} repositories")
+        for repo in repositories:
+            if cloned_count >= num_repos:
+                break
+
+            repo_full_name = repo["full_name"]
+            logger.info(f"Processing {repo_full_name}")
+            if not repo_full_name not in known_repositories:
+                logger.info(f"Skipping {repo_full_name} since it is a known repository")
+                continue
+            name = None
+            try:
+                clone_url = repo["clone_url"]
+                repo_name, sha = clone_repo(clone_url)
+                name = repo_name
+                url = clone_url.replace(".git", "")
+                lean_git_repo = LeanGitRepo(url, sha)
+                lean_git_repos.append(lean_git_repo)
+                cloned_count += 1
+                logger.info(f"Cloned {repo_full_name}")
+            except Exception as e:
+                if name:
+                    shutil.rmtree(name)
+                logger.info(f"Failed to clone {repo_full_name} because of {e}")
+        page += 1
 
         # Check if we've reached the end of the search results
         if len(repositories) < 100:

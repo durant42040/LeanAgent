@@ -16,6 +16,7 @@ import networkx as nx
 from lean_dojo import *
 from lean_dojo.constants import LEAN4_PACKAGES_DIR
 from loguru import logger
+from utils.lean import get_lean4_version_from_config, is_supported_version
 
 random.seed(3407)  # https://arxiv.org/abs/2109.08203
 
@@ -23,47 +24,6 @@ RAID_DIR = os.environ.get("RAID_DIR")
 SPLIT_NAME = str  # train/val/test
 SPLIT = Dict[SPLIT_NAME, List[TracedTheorem]]
 SPLIT_STRATEGY = str
-_LEAN4_VERSION_REGEX = re.compile(r"leanprover/lean4:(?P<version>.+?)")
-
-
-def get_lean4_version_from_config(toolchain: str) -> str:
-    """Return the required Lean version given a ``lean-toolchain`` config."""
-    m = _LEAN4_VERSION_REGEX.fullmatch(toolchain.strip())
-    assert m is not None, "Invalid config."
-    return m["version"]
-
-
-def is_supported_version(v) -> bool:
-    """
-    Check if ``v`` is at least `v4.3.0-rc2` and at most `v4.8.0-rc1`.
-    Note: Lean versions are generally not backwards-compatible. Also, the Lean FRO
-    keeps bumping the default versions of repos to the latest version, which is
-    not necessarily the latest stable version. So, we need to be careful about
-    what we choose to support.
-    """
-    if not v.startswith("v"):
-        return False
-    v = v[1:]
-    major, minor, patch = [int(_) for _ in v.split("-")[0].split(".")]
-    if (
-        major < 4
-        or (major == 4 and minor < 3)
-        or (major == 4 and minor > 18)
-        or (major == 4 and minor == 18 and patch > 1)
-    ):
-        return False
-    if (
-        major > 4
-        or (major == 4 and minor > 3)
-        or (major == 4 and minor == 3 and patch > 0)
-    ):
-        return True
-    assert major == 4 and minor == 3 and patch == 0
-    if "4.3.0-rc" in v:
-        rc = int(v.split("-")[1][2:])
-        return rc >= 2
-    else:
-        return True
 
 
 def _split_sequentially(
@@ -362,70 +322,23 @@ def export_metadata(traced_repo: TracedRepo, dst_path: Path, **kwargs) -> None:
 
 def safe_remove_dir(dir_path):
     """
-    Safely removes a directory if it exists.
-
-    This function attempts to remove the specified directory, with multiple retries
-    in case of permission errors. A warning is logged if the directory already exists.
-
-    Args:
-        dir_path (str): Path to the directory to be removed.
-
-    Raises:
-        PermissionError: If the directory cannot be removed after multiple attempts
-                         due to permission issues.
-
-    Note:
-        The function will retry up to 5 times with a 0.1 second delay between attempts
-        if a PermissionError occurs.
-    """
-    if os.path.exists(dir_path):
-        logger.warning(f"{dir_path} already exists. Removing it now.")
-        max_retries = 5
-        for attempt in range(max_retries):
-            try:
-                shutil.rmtree(dir_path)
-                break
-            except PermissionError as e:
-                if attempt < max_retries - 1:
-                    time.sleep(0.1)  # Wait a bit before retrying
-                else:
-                    logger.error(
-                        f"Failed to remove {dir_path} after {max_retries} attempts: {e}"
-                    )
-                    raise
-
-
-def safe_remove_dir_path(dir_path):
-    """
     Safely removes a directory and all its contents if it exists.
-
-    Uses multiple attempts with a small delay between them to handle potential
-    permission errors that might occur on some systems when removing directories.
-
     Args:
         dir_path (Path): Path object representing the directory to remove
 
     Raises:
-        PermissionError: If the directory cannot be removed after multiple attempts
+        PermissionError: If the directory cannot be removed
 
     Returns:
         None
     """
     if dir_path.exists():
         logger.warning(f"{dir_path} already exists. Removing it now.")
-        max_retries = 5
-        for attempt in range(max_retries):
-            try:
-                shutil.rmtree(dir_path)
-                break
-            except PermissionError as e:
-                if attempt < max_retries - 1:
-                    time.sleep(0.1)  # Wait a bit before retrying
-                else:
-                    logger.error(
-                        f"Failed to remove {dir_path} after {max_retries} attempts: {e}"
-                    )
-                    raise
+        try:
+            shutil.rmtree(dir_path)
+        except PermissionError as e:
+            logger.error(f"Failed to remove {dir_path}: {e}")
+            raise e
 
 
 def export_data(
@@ -454,7 +367,7 @@ def export_data(
     """
     if isinstance(dst_path, str):
         dst_path = Path(dst_path)
-    safe_remove_dir_path(dst_path)
+    safe_remove_dir(dst_path)
 
     # Export the proofs.
     total_theorems = export_proofs(splits, dst_path, traced_repo)

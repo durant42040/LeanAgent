@@ -10,19 +10,24 @@ from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 import lean_dojo
+
 import numpy as np
 from lean_dojo import LeanGitRepo
 from loguru import logger
 
 from .models import Repository, Theorem
 from utils.constants import BATCH_SIZE, DATA_DIR, RAID_DIR, KNOWN_REPOSITORIES
-from utils.difficulty import calculate_difficulty, categorize_difficulty
+from utils.difficulty import (
+    calculate_theorem_difficulty,
+    categorize_difficulty,
+    print_difficulty_summary,
+)
 from utils.git import (
     get_compatible_commit,
     search_github_repositories,
     find_and_save_compatible_commits,
 )
-from .utils import safe_remove_dir_path
+from utils.lean import get_lean4_version_from_config
 
 import generate_benchmark_lean4
 
@@ -37,6 +42,7 @@ class DynamicDatabase:
     3. Splitting theorem data for training/validation/testing
     4. Exporting proofs, corpus data, and metadata
     """
+
     repositories: List[Repository] = field(default_factory=list)
     json_path: Optional[str] = field(default=None)
 
@@ -44,7 +50,10 @@ class DynamicDatabase:
         """Post-initialization hook for dataclass."""
         # If json_path is provided, try to load from it
         if self.json_path is not None:
-            if not os.path.exists(self.json_path) or os.path.getsize(self.json_path) == 0:
+            if (
+                not os.path.exists(self.json_path)
+                or os.path.getsize(self.json_path) == 0
+            ):
                 # File doesn't exist or is empty, initialize it
                 logger.info(f"Initializing new database at {self.json_path}")
                 self.to_json(self.json_path)
@@ -125,7 +134,7 @@ class DynamicDatabase:
         theorems = [t for t, _ in all_theorems.values()]
         splits = self._split_data(theorems)
 
-        safe_remove_dir_path(output_path)
+        generate_benchmark_lean4.safe_remove_dir(output_path)
 
         self._export_proofs(splits, output_path)
         logger.info(f"Exported proofs to {output_path}")
@@ -408,12 +417,11 @@ class DynamicDatabase:
         difficulties_by_repo = defaultdict(list)
         all_difficulties = []
 
-        print("Ready to calculate difficulties of all theorems")
         logger.info(f"repositories: {self.repositories}")
         for repo in self.repositories:
             print(f"Starting {repo.name}")
             for theorem in repo.get_all_theorems:
-                difficulty = calculate_difficulty(theorem)
+                difficulty = calculate_theorem_difficulty(theorem)
                 theorem.difficulty_rating = difficulty
                 difficulties_by_repo[repo].append(
                     (
@@ -428,13 +436,11 @@ class DynamicDatabase:
                     all_difficulties.append(difficulty)
 
             self.update_repository(repo)
-            print(f"Finished {repo.name}")
 
         percentiles = np.percentile(all_difficulties, [33, 67])
 
         categorized_theorems = defaultdict(lambda: defaultdict(list))
 
-        print("Ready to categorize theorems")
         for repo, theorems in difficulties_by_repo.items():
             print(f"Starting {repo.name}")
             for theorem_name, file_path, start, end, difficulty in theorems:
@@ -442,7 +448,6 @@ class DynamicDatabase:
                 categorized_theorems[repo][category].append(
                     (theorem_name, file_path, start, end, difficulty)
                 )
-            print(f"Finished {repo.name}")
 
         print("Distributed theorems with no proofs")
         for repo in categorized_theorems:
@@ -465,51 +470,15 @@ class DynamicDatabase:
 
         # Save results if path is provided
         if self.json_path:
-            print("Sorted repositories. Saving now...")
             self.to_json(self.json_path)
             from utils.repository import save_sorted_repos
 
             save_sorted_repos(sorted_repos, "sorted_repos.json")
 
             # Print summary of theorem difficulties
-            categories = ["Easy", "Medium", "Hard", "Hard (No proof)"]
-            print("Summary of theorem difficulties by URL:")
-            for repo in sorted_repos:
-                print(f"\nURL: {repo.url}")
-                for category in categories:
-                    theorems = categorized_theorems[repo][category]
-                    print(f"  {category}: {len(theorems)} theorems")
-                    if theorems:
-                        sorted_theorems = sorted(
-                            theorems,
-                            key=lambda x: (x[4] if x[4] is not None else -float("inf")),
-                            reverse=True,
-                        )[:3]
-                        for name, path, start, end, diff in sorted_theorems:
-                            diff_str = f"{diff:.2f}" if diff is not None else "N/A"
-                            print(
-                                f"    - {name} (File: {path}, Difficulty: {diff_str})"
-                            )
+            print_difficulty_summary(categorized_theorems, percentiles)
 
-            print("\nOverall Statistics:")
-            total_theorems = sum(
-                len(theorems)
-                for categories in categorized_theorems.values()
-                for theorems in categories.values()
-            )
-            for category in categories:
-                count = sum(
-                    len(categories[category])
-                    for categories in categorized_theorems.values()
-                )
-                percentage = (count / total_theorems) * 100
-                print(f"{category}: {count} theorems ({percentage:.2f}%)")
-
-            print(
-                f"\nPercentile thresholds: Easy <= {percentiles[0]:.2f}, Medium <= {percentiles[1]:.2f}, Hard > {percentiles[1]:.2f}"
-            )
-
-        return sorted_repos, categorized_theorems, percentiles
+        return sorted_repos
 
     def trace_repository(self, repo) -> Optional[Repository]:
         """
@@ -522,6 +491,7 @@ class DynamicDatabase:
         Returns:
             repo if successful, None if failed
         """
+        url = repo.url
         sha, v = get_compatible_commit(url)
 
         if not sha:
@@ -550,7 +520,7 @@ class DynamicDatabase:
         logger.info(f"Finished generating benchmark at {dst_dir}")
 
         config = repo.get_config("lean-toolchain")
-        v = generate_benchmark_lean4.get_lean4_version_from_config(config["content"])
+        v = get_lean4_version_from_config(config["content"])
         theorems_folder = dst_dir + "/random"
         premise_files_corpus = dst_dir + "/corpus.jsonl"
         files_traced = dst_dir + "/traced_files.jsonl"
@@ -608,7 +578,7 @@ class DynamicDatabase:
         # If curriculum learning is enabled, initialize repositories and sort them by difficulty
         if curriculum_learning:
             logger.info("Starting curriculum learning")
-            lean_git_repos, _, _ = self.sort_repositories_by_difficulty()
+            lean_git_repos = self.sort_repositories_by_difficulty()
         else:
             logger.info("Starting without curriculum learning")
 
@@ -620,4 +590,4 @@ class DynamicDatabase:
             LeanGitRepo(repo["url"], repo["commit"]) for repo in updated_repos
         ]
 
-        return lean_git_repos 
+        return lean_git_repos

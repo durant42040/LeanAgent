@@ -14,7 +14,7 @@ import lean_dojo
 from lean_dojo.data_extraction.lean import LeanGitRepo, Pos
 from loguru import logger
 
-import generate_benchmark_lean4
+from utils.lean import get_lean4_version_from_config
 from database import (
     DynamicDatabase,
     AnnotatedTactic,
@@ -979,7 +979,7 @@ class TestDynamicDatabaseSimpleLean(unittest.TestCase):
         dir_name = url.split("/")[-1].replace(".git", "") + "_" + commit
         dst_dir = RAID_DIR + "/" + DATA_DIR + "/" + dir_name + "_updated"
         config = lean_git_repo.get_config("lean-toolchain")
-        v = generate_benchmark_lean4.get_lean4_version_from_config(config["content"])
+        v = get_lean4_version_from_config(config["content"])
         data = {
             "url": lean_git_repo.url,
             "name": "/".join(lean_git_repo.url.split("/")[-2:]),
@@ -1313,7 +1313,7 @@ class TestDynamicDatabasePFR(unittest.TestCase):
         dir_name = url.split("/")[-1] + "_" + commit
         dst_dir = RAID_DIR + "/" + DATA_DIR + "/" + dir_name + "_updated"
         config = lean_git_repo.get_config("lean-toolchain")
-        v = generate_benchmark_lean4.get_lean4_version_from_config(config["content"])
+        v = get_lean4_version_from_config(config["content"])
         theorems_folder = dst_dir + "/random"
         premise_files_corpus = dst_dir + "/corpus.jsonl"
         files_traced = dst_dir + "/traced_files.jsonl"
@@ -1820,7 +1820,7 @@ class TestDynamicDatabasePFRNewVersion(unittest.TestCase):
         dir_name = url.split("/")[-1] + "_" + commit
         dst_dir = RAID_DIR + "/" + DATA_DIR + "/" + dir_name + "_updated"
         config = lean_git_repo.get_config("lean-toolchain")
-        v = generate_benchmark_lean4.get_lean4_version_from_config(config["content"])
+        v = get_lean4_version_from_config(config["content"])
         data = {
             "url": lean_git_repo.url,
             "name": "/".join(lean_git_repo.url.split("/")[-2:]),

@@ -13,7 +13,7 @@ from .annotations import AnnotatedTactic, parse_pos
 class Theorem:
     """
     A class to represent a theorem with its associated metadata.
-    
+
     Attributes:
         full_name (str): The full name of the theorem.
         file_path (Path): The file path where the theorem is located.
@@ -25,6 +25,7 @@ class Theorem:
         traced_tactics (Optional[List[AnnotatedTactic]], optional): A list of traced tactics.
         difficulty_rating (Optional[float], optional): The difficulty rating of the theorem.
     """
+
     full_name: str
     file_path: Path
     start: Pos
@@ -77,4 +78,4 @@ class Theorem:
             "commit": self.commit,
             "traced_tactics": [t.to_dict() for t in (self.traced_tactics or [])],
             "difficulty_rating": self.difficulty_rating,
-        } 
+        }

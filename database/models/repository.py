@@ -16,9 +16,9 @@ from .theorems import Theorem
 @dataclass
 class Repository:
     """
-    Repository class represents a repository with various attributes and methods 
+    Repository class represents a repository with various attributes and methods
     to manage theorems and premise files.
-    
+
     Attributes:
         url (str): URL of the repository.
         name (str): Name of the repository.
@@ -33,6 +33,7 @@ class Repository:
         files_traced (List[Path]): List of traced files.
         pr_url (Optional[str]): URL of the pull request.
     """
+
     url: str
     name: str
     commit: str
@@ -278,4 +279,4 @@ class Repository:
         else:
             raise ValueError(
                 "The theorem is not in the list of unproved sorry theorems."
-            ) 
+            )
