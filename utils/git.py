@@ -16,7 +16,6 @@ import requests
 from lean_dojo import LeanGitRepo
 from loguru import logger
 
-import generate_benchmark_lean4
 from utils.lean import get_lean4_version_from_config, is_supported_version
 
 

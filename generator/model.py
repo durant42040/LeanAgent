@@ -13,6 +13,7 @@ from lean_dojo import Pos
 from loguru import logger
 from torchmetrics import Metric
 from transformers import AutoTokenizer, T5ForConditionalGeneration
+from utils.filesystem import remove_dir
 
 from common import (
     IndexedCorpus,
@@ -25,43 +26,6 @@ from common import (
 from retrieval.model import PremiseRetriever
 
 torch.set_float32_matmul_precision("medium")
-
-
-def safe_remove_dir(dir_path):
-    """
-    Safely removes a directory path if it exists, with retries.
-
-    This function attempts to delete a directory and retries multiple times if permission errors occur,
-    which can happen if files are temporarily locked by another process or if the directory
-    contains read-only files.
-
-    Args:
-        dir_path (str): Path to the directory to be removed.
-
-    Raises:
-        PermissionError: If the directory cannot be removed after multiple retries
-                         due to permission issues.
-
-    Example:
-        ```
-        safe_remove_dir('/path/to/directory')
-        ```
-    """
-    if os.path.exists(dir_path):
-        logger.warning(f"{dir_path} already exists. Removing it now.")
-        max_retries = 5
-        for attempt in range(max_retries):
-            try:
-                shutil.rmtree(dir_path)
-                break
-            except PermissionError as e:
-                if attempt < max_retries - 1:
-                    time.sleep(0.1)  # Wait a bit before retrying
-                else:
-                    logger.error(
-                        f"Failed to remove {dir_path} after {max_retries} attempts: {e}"
-                    )
-                    raise
 
 
 class TopkAccuracy(Metric):
@@ -404,7 +368,7 @@ class RetrievalAugmentedGenerator(TacticGenerator, pl.LightningModule):
         self.log("Pass@1_val", acc, on_step=False, on_epoch=True, sync_dist=True)
         logger.info(f"Pass@1: {acc}")
 
-        safe_remove_dir(ckpt_path)
+        remove_dir(ckpt_path)
 
     ##############
     # Prediction #

@@ -1,10 +1,7 @@
 import json
 import random
-import re
-import shutil
 import subprocess
 import sys
-import time
 from collections import defaultdict
 from copy import copy
 from datetime import datetime
@@ -17,6 +14,7 @@ from lean_dojo import *
 from lean_dojo.constants import LEAN4_PACKAGES_DIR
 from loguru import logger
 from utils.lean import get_lean4_version_from_config, is_supported_version
+from utils.filesystem import remove_dir
 
 random.seed(3407)  # https://arxiv.org/abs/2109.08203
 
@@ -320,27 +318,6 @@ def export_metadata(traced_repo: TracedRepo, dst_path: Path, **kwargs) -> None:
     json.dump(metadata, (dst_path / "metadata.json").open("wt"))
 
 
-def safe_remove_dir(dir_path):
-    """
-    Safely removes a directory and all its contents if it exists.
-    Args:
-        dir_path (Path): Path object representing the directory to remove
-
-    Raises:
-        PermissionError: If the directory cannot be removed
-
-    Returns:
-        None
-    """
-    if dir_path.exists():
-        logger.warning(f"{dir_path} already exists. Removing it now.")
-        try:
-            shutil.rmtree(dir_path)
-        except PermissionError as e:
-            logger.error(f"Failed to remove {dir_path}: {e}")
-            raise e
-
-
 def export_data(
     traced_repo: TracedRepo,
     splits: Dict[SPLIT_STRATEGY, SPLIT],
@@ -367,7 +344,7 @@ def export_data(
     """
     if isinstance(dst_path, str):
         dst_path = Path(dst_path)
-    safe_remove_dir(dst_path)
+    remove_dir(dst_path)
 
     # Export the proofs.
     total_theorems = export_proofs(splits, dst_path, traced_repo)
@@ -470,7 +447,7 @@ def main(url, commit, dst_dir):
     except Exception as e:
         logger.info(f"Failed to trace repo {repo} because of {e}")
         return None, 0, 0, 10
-    safe_remove_dir(dst_dir)
+    remove_dir(dst_dir)
     splits = split_data(traced_repo)
     logger.info("Successfully split the data")
     num_premises, num_files_traced, total_theorems = export_data(

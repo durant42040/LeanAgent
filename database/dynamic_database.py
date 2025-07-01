@@ -28,6 +28,7 @@ from utils.git import (
     find_and_save_compatible_commits,
 )
 from utils.lean import get_lean4_version_from_config
+from utils.filesystem import remove_dir
 
 import generate_benchmark_lean4
 
@@ -134,7 +135,7 @@ class DynamicDatabase:
         theorems = [t for t, _ in all_theorems.values()]
         splits = self._split_data(theorems)
 
-        generate_benchmark_lean4.safe_remove_dir(output_path)
+        remove_dir(output_path)
 
         self._export_proofs(splits, output_path)
         logger.info(f"Exported proofs to {output_path}")
