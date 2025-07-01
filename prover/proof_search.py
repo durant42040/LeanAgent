@@ -15,7 +15,7 @@ import torch
 from lean_dojo import (
     Dojo,
     DojoCrashError,
-    DojoHardTimeoutError,
+    DojoTacticTimeoutError,
     DojoInitError,
     LeanError,
     LeanGitRepo,
@@ -166,7 +166,7 @@ class BestFirstSearchProver:
 
             try:
                 await self._step(priority_queue)
-            except DojoHardTimeoutError:
+            except DojoTacticTimeoutError:
                 logger.info(time.monotonic())
                 logger.info(time_start)
                 logger.info(time.monotonic() - time_start)

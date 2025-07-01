@@ -8,7 +8,7 @@ from enum import Enum
 from functools import total_ordering
 from typing import Iterable, List, Optional, Tuple, Union
 
-from lean_dojo import LeanError, ProofFinished, ProofGivenUp, TacticState, TimeoutError
+from lean_dojo import LeanError, ProofFinished, ProofGivenUp, TacticState, DojoTacticTimeoutError
 
 
 class Status(Enum):
@@ -47,7 +47,7 @@ class ProofFinishedNode(Node):
 
 @dataclass
 class ErrorNode(Node):
-    inner: Union[LeanError, TimeoutError, ProofGivenUp]
+    inner: Union[LeanError, DojoTacticTimeoutError, ProofGivenUp]
     status = Status.FAILED
     distance_to_proof = math.inf
     is_terminal = True
