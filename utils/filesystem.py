@@ -34,7 +34,7 @@ def remove_dir(dir_path: Union[str, Path]) -> None:
     """
     if isinstance(dir_path, str):
         dir_path = Path(dir_path)
-    
+
     if dir_path.exists():
         logger.warning(f"{dir_path} already exists. Removing it now.")
         max_retries = 5
@@ -49,4 +49,4 @@ def remove_dir(dir_path: Union[str, Path]) -> None:
                     logger.error(
                         f"Failed to remove {dir_path} after {max_retries} attempts: {e}"
                     )
-                    raise 
+                    raise

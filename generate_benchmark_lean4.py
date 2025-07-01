@@ -10,7 +10,8 @@ from typing import Dict, List, Union
 
 import lean_dojo
 import networkx as nx
-from lean_dojo import *
+import os
+from lean_dojo import TracedTheorem, TracedRepo, LeanGitRepo, trace, constants
 from lean_dojo.constants import LEAN4_PACKAGES_DIR
 from loguru import logger
 from utils.lean import get_lean4_version_from_config, is_supported_version
@@ -361,29 +362,6 @@ def export_data(
     return num_premises, num_files_traced, total_theorems
 
 
-def configure_leandojo():
-    """
-    Configure the LeanDojo environment for benchmarking.
-
-    This function sets up the logger configuration for LeanDojo and displays
-    important environment variables including the current working directory
-    and various constants related to process management.
-
-    It removes any existing logger handlers and adds a new handler for stderr
-    with DEBUG level logging.
-
-    No parameters are required, and the function does not return any values.
-    """
-    constants.logger.remove()
-    constants.logger.add(sys.stderr, level="DEBUG")
-
-    # constants.NUM_WORKERS = 1
-    # constants.MAX_NUM_PROCS = 2 # 1 worker + 1 main process
-    # constants.NUM_PROCS = 2
-
-    logger.info(f"Current working directory: {os.getcwd()}")
-
-
 def main(url, commit, dst_dir):
     """
     Generates a benchmark dataset for Lean 4 proofs from a specified repository.
@@ -435,10 +413,6 @@ def main(url, commit, dst_dir):
         f"lean --version: {subprocess.run(['lean', '--version'], capture_output=True).stdout.decode('utf-8')}"
     )
     logger.info(f"repo: {repo}")
-
-    logger.info("Configuring LeanDojo again...")
-    configure_leandojo()
-    logger.info("LeanDojo configured")
 
     try:
         logger.info("Tracing the repo...")

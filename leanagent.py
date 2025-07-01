@@ -358,11 +358,6 @@ def main():
         num_repos = 1
         dynamic_database_json_path = RAID_DIR + "/" + DB_FILE_NAME
 
-        # Add debug information
-        logger.info("Configuring LeanDojo...")
-        generate_benchmark_lean4.configure_leandojo()
-        logger.info("LeanDojo configured")
-
         # Check if the current process is the main one
         is_main_process = int(os.environ.get("LOCAL_RANK", "0")) == 0
         # Initialize database and discover repositories
