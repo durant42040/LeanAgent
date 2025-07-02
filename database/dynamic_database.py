@@ -567,10 +567,10 @@ class DynamicDatabase:
 
         for repo in lean_git_repos:
             logger.info(f"Processing {repo.url}")
-            repo = self.trace_repository(repo)
-            if repo is not None:
-                self.add_repository(repo)
-                logger.info(f"Successfully added repo {repo.url}")
+            traced_repo = self.trace_repository(repo)
+            if traced_repo is not None:
+                self.add_repository(traced_repo)
+                logger.info(f"Successfully added repo {traced_repo.url}")
             else:
                 logger.info(f"Failed to add repo {repo.url}")
 

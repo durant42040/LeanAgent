@@ -19,7 +19,7 @@ from pytorch_lightning.utilities.deepspeed import (
 )
 from transformers import get_cosine_schedule_with_warmup
 
-from leanagent_utils import MARK_END_SYMBOL, MARK_START_SYMBOL, remove_marks
+from utils.constants import MARK_END_SYMBOL, MARK_START_SYMBOL
 
 Example = Dict[str, Any]
 Batch = Dict[str, Any]

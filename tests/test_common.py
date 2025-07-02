@@ -1,6 +1,6 @@
 import pytest
 
-from leanagent_utils import remove_marks
+from utils.constants import remove_marks
 
 
 @pytest.mark.parametrize(

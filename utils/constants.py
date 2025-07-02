@@ -20,7 +20,7 @@ FISHER_DIR = f"{RAID_DIR}/fisher"  # Optional
 
 # File paths
 EVAL_RESULTS_FILE_PATH = f"{RAID_DIR}/LeanAgent/eval_results.json"
-DB_FILE_NAME = f"{RAID_DIR}/dynamic_database.json"
+DB_FILE_NAME = f"dynamic_database.json"
 PROOF_LOG_FILE_NAME = "proof_logs/proof_log.txt"
 ENCOUNTERED_THEOREMS_FILE = f"{RAID_DIR}/encountered_theorems.json"
 
@@ -252,3 +252,12 @@ KNOWN_REPOSITORIES: List[str] = [
     "T-Brick/ControlFlow",
     "pa-ba/guarded-lean",
 ]
+
+# Mark symbols for annotations
+MARK_START_SYMBOL = "<a>"
+MARK_END_SYMBOL = "</a>"
+
+
+def remove_marks(s: str) -> str:
+    """Remove all :code:`<a>` and :code:`</a>` from ``s``."""
+    return s.replace(MARK_START_SYMBOL, "").replace(MARK_END_SYMBOL, "")
