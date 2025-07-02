@@ -3,7 +3,7 @@ Utility functions for calculating and categorizing theorem difficulties.
 """
 
 import math
-from typing import List, Union, Dict
+from typing import List, Union
 
 from database.models import Theorem
 from database.models.repository import Repository

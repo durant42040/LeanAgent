@@ -46,7 +46,7 @@ bash replace_files.sh
     - `ENCOUNTERED_THEOREMS_FILE`: Path for tracking encountered theorems
     - (Optional) `FISHER_DIR`: Directory for Fisher Information Matrices (FIMs)
 2. Adjust the options at the beginning of the `main()` function according to your requirements. The default options correspond to the LeanAgent configuration, and alternate options can be used to replicate ablation studies from the paper.
-3. Adjust the Lean toolchain paths in `generate_benchmark_lean4.py` if needed:
+3. Adjust the Lean toolchain paths in `lean_dojo/data_extraction/dataset.py` if needed:
 ```
 lean_dir2 = f"/.elan/toolchains/leanprover--lean4---{v}"
 lean_dir3 = f"~/.elan/toolchains/leanprover--lean4---{v}"

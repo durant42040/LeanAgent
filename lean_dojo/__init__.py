@@ -12,6 +12,7 @@ from .data_extraction.traced_data import (
     TracedTheorem,
     TracedTactic,
 )
+from .data_extraction.dataset import generate_dataset
 from .interaction.dojo import (
     CommandState,
     TacticState,

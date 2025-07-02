@@ -30,7 +30,7 @@ from utils.git import (
 from utils.lean import get_lean4_version_from_config
 from utils.filesystem import remove_dir
 
-import generate_benchmark_lean4
+from lean_dojo import generate_dataset
 
 
 @dataclass
@@ -507,9 +507,7 @@ class DynamicDatabase:
         dst_dir = RAID_DIR + "/" + DATA_DIR + "/" + dir_name
         logger.info(f"Generating benchmark at {dst_dir}")
 
-        traced_repo, _, _, total_theorems = generate_benchmark_lean4.main(
-            repo.url, sha, dst_dir
-        )
+        traced_repo, _, _, total_theorems = generate_dataset(repo.url, sha, dst_dir)
         if not traced_repo:
             logger.info(f"Failed to trace {url}")
             return None
