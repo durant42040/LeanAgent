@@ -13,14 +13,14 @@ RAID_DIR = os.environ.get("RAID_DIR")
 PERSONAL_ACCESS_TOKEN = os.environ.get("GITHUB_ACCESS_TOKEN")
 
 # Directory paths
-REPO_DIR = f"{RAID_DIR}/repos_new"
-DATA_DIR = f"{RAID_DIR}/data"
-CHECKPOINT_DIR = f"{RAID_DIR}/checkpoints"
-FISHER_DIR = f"{RAID_DIR}/fisher"  # Optional
+REPO_DIR = "repos_new"
+DATA_DIR = "data"
+CHECKPOINT_DIR = "checkpoints"
+FISHER_DIR = "fisher"  # Optional
 
 # File paths
 EVAL_RESULTS_FILE_PATH = f"{RAID_DIR}/LeanAgent/eval_results.json"
-DB_FILE_NAME = f"dynamic_database.json"
+DB_FILE_NAME = "dynamic_database.json"
 PROOF_LOG_FILE_NAME = "proof_logs/proof_log.txt"
 ENCOUNTERED_THEOREMS_FILE = f"{RAID_DIR}/encountered_theorems.json"
 

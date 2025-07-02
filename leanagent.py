@@ -25,7 +25,6 @@ from pytorch_lightning.callbacks import (
 from pytorch_lightning.strategies import DDPStrategy
 from tqdm import tqdm
 
-from lean_dojo import generate_dataset
 from database import DynamicDatabase, Theorem, AnnotatedTactic
 from prover.proof_search import DistributedProver, SearchResult, Status
 from retrieval.datamodule import RetrievalDataModule
