@@ -24,6 +24,7 @@ from common import (
     zip_strict,
 )
 from retrieval.model import PremiseRetriever
+from utils.constants import remove_marks
 
 torch.set_float32_matmul_precision("medium")
 

@@ -64,7 +64,7 @@ def main():
             accelerator="gpu",
             precision="bf16-mixed",
             strategy=ddp_strategy,
-            devices=4,
+            devices=1,
             max_epochs=1,
             log_every_n_steps=1,
             num_sanity_val_steps=0,

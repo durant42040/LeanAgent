@@ -426,13 +426,9 @@ def generate_dataset(url: str, commit: str, dst_dir: str) -> tuple:
     setup_lean_environment(repo)
 
     # Trace repository
-    try:
-        logger.info("Starting repository tracing...")
-        traced_repo = trace(repo)
-        logger.info("Repository tracing completed successfully")
-    except Exception as e:
-        logger.error(f"Repository tracing failed: {e}")
-        return None, 0, 0, 10
+    logger.info("Starting repository tracing...")
+    traced_repo = trace(repo)
+    logger.info("Repository tracing completed successfully")
 
     # Generate and export dataset
     if os.path.exists(dst_dir):

@@ -462,7 +462,7 @@ class DistributedProver:
                 "num_beams": 5,
                 "eval_num_retrieved": 10,
                 "eval_num_workers": 1,
-                "eval_num_gpus": 4,
+                "eval_num_gpus": 1,
                 "eval_num_theorems": 100,
                 "max_inp_seq_len": 512,
                 "max_oup_seq_len": 128,

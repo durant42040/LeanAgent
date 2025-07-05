@@ -1,7 +1,7 @@
 seed_everything: 3407  # https://arxiv.org/abs/2109.08203
 trainer:
   accelerator: gpu
-  devices: 4
+  devices: 1
   precision: bf16-mixed
   gradient_clip_val: 1.0
   max_steps: 800000

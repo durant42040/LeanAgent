@@ -6,7 +6,7 @@ import os
 from typing import List
 
 # Batch size for training
-BATCH_SIZE = 4
+BATCH_SIZE = 1
 
 # Environment variables
 RAID_DIR = os.environ.get("RAID_DIR")

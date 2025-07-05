@@ -254,7 +254,7 @@ def to_json_path(root_dir: Path, path: Path, repo) -> Path:
     return _from_lean_path(root_dir, path, repo, ext=".ast.json")
 
 
-def to_lean_path(root_dir: Path, path: Path, repo) -> bool:
+def to_lean_path(root_dir: Path, path: Path, repo) -> Path:
     if path.is_absolute():
         path = path.relative_to(root_dir)
 
@@ -267,6 +267,8 @@ def to_lean_path(root_dir: Path, path: Path, repo) -> bool:
     assert root_dir.name != "lean4"
     if path == LEAN4_PACKAGES_DIR / "lean4/lib/lean/Lake.lean":
         return LEAN4_PACKAGES_DIR / "lean4/src/lean/lake/Lake.lean"
+    elif path == LEAN4_PACKAGES_DIR / "lean4/lib/lean/LakeMain.lean":
+        return LEAN4_PACKAGES_DIR / "lean4/src/lake/LakeMain.lean"
     elif path.is_relative_to(LEAN4_PACKAGES_DIR / "lean4/lib/lean/Lake"):
         # E.g., "lake-packages/lean4/lib/lean/Lake/Util/List.lean"
         p = path.relative_to(LEAN4_PACKAGES_DIR / "lean4/lib/lean/Lake")

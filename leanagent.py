@@ -228,7 +228,7 @@ def prove_sorry_theorems(
     all_encountered_theorems: Set[Tuple[str, str, Tuple[int, int], Tuple[int, int]]] = (
         set()
     )
-    last_save_time = datetime.datetime.now()
+    last_save_time = datetime.now()
     save_interval = timedelta(minutes=30)
 
     # Load previously encountered theorems
@@ -291,7 +291,7 @@ def prove_sorry_theorems(
                 theorem_batch = []
                 positions_batch = []
 
-            current_time = datetime.datetime.now()
+            current_time = datetime.now()
             if current_time - last_save_time >= save_interval:
                 save_progress(all_encountered_theorems)
                 last_save_time = current_time
@@ -349,7 +349,7 @@ def main():
     global repos_for_merged_dataset
     global repos_for_proving
     try:
-        current_epoch = 0
+        current_epoch = 22
         epochs_per_repo = 1
         run_progressive_training = True
         single_repo = True
@@ -493,7 +493,7 @@ def main():
                         gradient_clip_val=1.0,
                         precision="bf16-mixed",
                         strategy=ddp_strategy,
-                        devices=4,
+                        devices=1,
                         accumulate_grad_batches=4,
                         callbacks=[
                             lr_monitor,
@@ -607,7 +607,7 @@ def main():
 
                         run_cli(best_model_path, data_path)
                         if is_main_process:
-                            num_gpus = 4
+                            num_gpus = 1
                             preds_map = {}
                             for gpu_id in range(num_gpus):
                                 with open(f"test_pickle_{gpu_id}.pkl", "rb") as f:
@@ -671,7 +671,7 @@ def main():
                         None  # `None` since we are not using a fixed tactic generator
                     )
                     num_workers = 4
-                    num_gpus = 4
+                    num_gpus = 1
                     timeout = 600
                     max_expansions = None
                     num_sampled_tactics = 64

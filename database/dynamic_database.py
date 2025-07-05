@@ -178,8 +178,8 @@ class DynamicDatabase:
     def _split_data(
         self,
         theorems: List[Theorem],
-        num_val_pct: float = 0.02,
-        num_test_pct: float = 0.02,
+        num_val_pct: float = 0.2,
+        num_test_pct: float = 0.2,
     ) -> Dict[str, SPLIT]:
         num_theorems = len(theorems)
         num_val = int(num_theorems * num_val_pct)
@@ -514,7 +514,7 @@ class DynamicDatabase:
         if (
             total_theorems < 3 * BATCH_SIZE
         ):  # Should be enough theorems for train/val/test
-            logger.info(f"No theorems found in {url}")
+            logger.info(f"Not enough theorems found in {url}")
             return None
         logger.info(f"Finished generating benchmark at {dst_dir}")
 
